@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Live Writing Assisted by AI - Policy Lens{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row vh-100">
+        <!-- Main Editor (70%) -->
+        <div class="col-md-8 p-0">
+            <div class="d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
+                <h5 class="mb-0">Policy Draft Editor</h5>
+                <div class="d-flex align-items-center">
+                    <!-- New: Product Selection Menu -->
+                    <select id="productSelect" class="form-select me-2" style="width: auto;">
+                        <option value="">Select Policy Product...</option>
+                        <option value="Policy Briefs">Policy Briefs</option>
+                        <option value="Policy Frameworks">Policy Frameworks</option>
+                        <option value="Legislative Instruments / Policy Framework Laws">Legislative Instruments / Policy Framework Laws</option>
+                        <option value="Strategic Plans / Implementation Strategies">Strategic Plans / Implementation Strategies</option>
+                        <option value="White Papers / Green Papers">White Papers / Green Papers</option>
+                    </select>
+                    <div>
+                        <button class="btn btn-sm btn-secondary me-1" onclick="clearEditor()">Clear</button>
+                        <button class="btn btn-sm btn-success" onclick="exportDoc()">Export as TXT</button>
+                    </div>
+                </div>
+            </div>
+            <div id="editor" style="height: calc(100vh - 70px);"></div>
+        </div>
+
+        <!-- Sidebar Suggestions (30%) -->
+        <div class="col-md-4 p-3 border-start bg-light">
+            <h6 class="mb-3">AI Suggestions</h6>
+            <div id="suggestionsPanel" class="mb-3">
+                <p class="text-muted">Select a policy product to start, then type (10+ words) for suggestions...</p>
+            </div>
+            <hr>
+            <h6 class="mb-2">Evidence Sources</h6>
+            <div id="evidencePanel" class="overflow-auto" style="max-height: 300px;">
+                <p class="text-muted small">Evidence will appear here with links.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- jQuery CDN (if not in base.html) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Quill Editor CDN -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<script src="{{ url_for('static', filename='js/live_writing.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,50 @@
+services:
+  web:
+    build: .
+    image: policylens-web:latest
+    env_file: .env
+    restart: unless-stopped
+    ports:
+      - "8080:5000"
+
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - UPLOAD_ROOT=${UPLOAD_ROOT}
+      # Optional: set these in .env if your host user is not 1000:1000
+      - APP_UID=${APP_UID:-1000}
+      - APP_GID=${APP_GID:-1000}
+
+    volumes:
+      - app_data:/data
+    working_dir: /app
+
+    # Run the app with a UID/GID that can write to /data
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+
+    # Create the upload dir, then exec gunicorn with an explicit app target.
+    command:
+      - sh
+      - -lc
+      - >
+        mkdir -p "${UPLOAD_ROOT:-/data/uploads}" &&
+        exec gunicorn -w 3 -k gthread --threads 2 --timeout 180
+        -b 0.0.0.0:5000 app:app
+
+    healthcheck:
+      # Keep /health only if it exists; otherwise we fall back to /
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5000/health || curl -fsS http://localhost:5000/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  # One-off helper to repair volume ownership if needed:
+  #   docker compose run --rm fix-perms
+  fix-perms:
+    image: busybox:1.36
+    command: sh -lc 'mkdir -p /data/uploads && chown -R ${APP_UID:-1000}:${APP_GID:-1000} /data'
+    volumes:
+      - app_data:/data
+    profiles: ["helpers"]
+
+volumes:
+  app_data: {}

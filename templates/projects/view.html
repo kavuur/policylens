@@ -1,0 +1,891 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} - Project Details - Policy Lens{% endblock %}
+
+{% block extra_head %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+<style>
+    .excerpt-row {
+        cursor: pointer;
+    }
+    .excerpt-row:hover {
+        background-color: #f8f9fa;
+    }
+    .excerpts-table {
+        table-layout: fixed;
+        width: 100%;
+    }
+    .excerpts-table th, .excerpts-table td {
+        vertical-align: top;
+        word-wrap: break-word;
+    }
+    .excerpts-table .excerpt-cell {
+        max-width: 25%;
+        overflow-y: auto;
+        white-space: normal;
+        word-wrap: break-word;
+        word-break: break-word;
+        max-height: 200px;
+        padding: 8px;
+    }
+    .excerpts-table .explanation-cell {
+        max-width: 300px;
+        overflow-y: auto;
+        white-space: normal;
+        word-wrap: break-word;
+        word-break: break-word;
+        max-height: 100px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0">{{ project.name }}</h1>
+                    {% if project.description %}
+                        <p class="text-muted mb-0">{{ project.description }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <a href="{{ url_for('edit_project', project_id=project.id) }}" class="btn btn-outline-success me-2">
+                        <i class="fas fa-edit me-1"></i> Edit Project
+                    </a>
+                    <a href="{{ url_for('list_projects') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Projects
+                    </a>
+                </div>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <ul class="nav nav-tabs" id="projectTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="media-tab" data-bs-toggle="tab" data-bs-target="#media" type="button" role="tab">
+                        <i class="fas fa-photo-video me-1"></i> Media
+                        <span class="badge bg-secondary ms-1">{{ project.media_items|length }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="codebooks-tab" data-bs-toggle="tab" data-bs-target="#codebooks" type="button" role="tab">
+                        <i class="fas fa-book me-1"></i> Codebooks
+                        <span class="badge bg-secondary ms-1">{{ project.codebooks|length }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="collaborators-tab" data-bs-toggle="tab" data-bs-target="#collaborators" type="button" role="tab">
+                        <i class="fas fa-users me-1"></i> Collaborators
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="analysis-tab" data-bs-toggle="tab" data-bs-target="#analysis" type="button" role="tab">
+                        <i class="fas fa-chart-line me-1"></i> Analysis
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="excerpts-tab" data-bs-toggle="tab" data-bs-target="#excerpts" type="button" role="tab">
+                        <i class="fas fa-quote-right me-1"></i> Excerpts
+                        <span id="excerptsBadge" class="badge bg-secondary ms-1 d-none"></span>
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content p-3 border border-top-0 rounded-bottom" id="projectTabsContent">
+                <!-- Media Tab -->
+                <div class="tab-pane fade show active" id="media" role="tabpanel" aria-labelledby="media-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Project Media</h5>
+                        <a href="{{ url_for('upload_media') }}?project_id={{ project.id }}" class="btn btn-success btn-sm">
+                            <i class="fas fa-plus me-1"></i> Add Media
+                        </a>
+                    </div>
+
+                    {% if project.media_items %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>Uploaded</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for media in project.media_items %}
+                                    <tr>
+                                        <td>{{ media.filename }}</td>
+                                        <td>{{ media.file_type or 'N/A' }}</td>
+                                        <td>{{ media.uploaded_at.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            <a href="{{ url_for('view_media', media_id=media.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('download_media', media_id=media.id) }}" class="btn btn-sm btn-outline-success">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-photo-video fa-4x text-muted mb-3"></i>
+                            <p class="text-muted">No media files found for this project.</p>
+                            <a href="{{ url_for('upload_media') }}?project_id={{ project.id }}" class="btn btn-success">
+                                <i class="fas fa-plus me-1"></i> Add Media
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Codebooks Tab -->
+                <div class="tab-pane fade" id="codebooks" role="tabpanel" aria-labelledby="codebooks-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Project Codebooks</h5>
+                        <a href="{{ url_for('create_codebook') }}?project_id={{ project.id }}" class="btn btn-success btn-sm">
+                            <i class="fas fa-plus me-1"></i> Create Codebook
+                        </a>
+                    </div>
+
+                    {% if project.codebooks %}
+                        <div class="row">
+                            {% for codebook in project.codebooks %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title">{{ codebook.name }}</h5>
+                                        {% if codebook.description %}
+                                            <p class="card-text text-muted">{{ codebook.description|truncate(100) }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="card-footer bg-transparent">
+                                        <a href="{{ url_for('edit_codebook_codes', codebook_id=codebook.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit me-1"></i> Edit
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-book fa-4x text-muted mb-3"></i>
+                            <p class="text-muted">No codebooks found for this project.</p>
+                            <a href="{{ url_for('create_codebook') }}?project_id={{ project.id }}" class="btn btn-success">
+                                <i class="fas fa-plus me-1"></i> Create Codebook
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Collaborators Tab -->
+                <div class="tab-pane fade" id="collaborators" role="tabpanel" aria-labelledby="collaborators-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Project Collaborators</h5>
+                        {% if is_owner %}
+                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addCollaboratorModal">
+                                <i class="fas fa-user-plus me-1"></i> Add Collaborator
+                            </button>
+                        {% endif %}
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-3 text-muted">Project Owner</h6>
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                    {{ project.owner.name[0].upper() if project.owner.name else project.owner.email[0].upper() }}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0">{{ project.owner.name or project.owner.email }}</h6>
+                                    <small class="text-muted">{{ project.owner.email }}</small>
+                                </div>
+                                <span class="badge bg-success">Owner</span>
+                            </div>
+
+                            {% if project.collaborators %}
+                                <hr>
+                                <h6 class="card-subtitle mb-3 text-muted">Collaborators</h6>
+                                <div id="collaboratorsList">
+                                    {% for collaborator in project.collaborators %}
+                                        <div class="d-flex align-items-center mb-3 collaborator-item" data-user-id="{{ collaborator.id }}">
+                                            <div class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                                {{ (collaborator.name[0] if collaborator.name else collaborator.email[0])|upper }}
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-0">{{ collaborator.name or collaborator.email }}</h6>
+                                                <small class="text-muted">{{ collaborator.email }}</small>
+                                                <div class="small text-muted">
+                                                    Joined {{ collaborator.created_at.strftime('%b %d, %Y') }}
+                                                </div>
+                                            </div>
+                                            {% if is_owner %}
+                                                <button class="btn btn-sm btn-outline-danger remove-collaborator"
+                                                        data-user-id="{{ collaborator.id }}"
+                                                        data-user-name="{{ collaborator.name or collaborator.email }}"
+                                                        data-remove-url="{{ url_for('remove_collaborator', project_id=project.id, user_id=collaborator.id) }}">
+                                                    <i class="fas fa-user-minus"></i> Remove
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">No collaborators yet.</p>
+                                    {% if is_owner %}
+                                        <p class="text-muted small">Add collaborators to work together on this project.</p>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analysis Tab -->
+                <div class="tab-pane fade" id="analysis" role="tabpanel" aria-labelledby="analysis-tab">
+                    <div class="row">
+                        <div class="col-lg-10 col-xl-8 mx-auto analysis-form">
+                            <!-- Success banner for saved excerpts -->
+                            <div id="analysisStatus" class="alert alert-success d-none" role="alert"></div>
+
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0">Analyze Content</h5>
+                                </div>
+                                <div class="card-body">
+                                    {% if project.media_items %}
+                                        <div class="mb-3">
+                                            <div class="form-group">
+                                                <div class="mb-3">
+                                                    <label for="mediaSelect" class="form-label">Select one or more media files</label>
+                                                    <div class="input-group mb-2">
+                                                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                                        <input type="text" class="form-control" id="mediaSearch" placeholder="Search media files..." autocomplete="off">
+                                                    </div>
+                                                    <select class="form-select" id="mediaSelect" multiple="multiple" style="height: 250px;" data-original-options='{{ project.media_items|sort(attribute='filename')|map(attribute='filename')|list|tojson|safe }}'>
+                                                        {% set sorted_media = project.media_items|sort(attribute='filename') %}
+                                                        {% for media in sorted_media %}
+                                                            <option value="{{ media.id }}" title="{{ media.filename }}" data-search="{{ media.filename|lower }}">
+                                                                {{ media.filename }}
+                                                            </option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="form-text">Search or click to select multiple files. Use Ctrl/Cmd + click to select multiple items.</div>
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <div class="alert alert-warning mb-0">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            No media files found. Please add media to this project first.
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Codebook Selection -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0">Select Codebook</h5>
+                                </div>
+                                <div class="card-body">
+                                    {% if project.codebooks %}
+                                        <div class="form-group">
+                                            <label for="codebookSelect" class="form-label">Select a codebook</label>
+                                            <select class="form-select" id="codebookSelect">
+                                                <option value="" selected disabled>-- Select a codebook --</option>
+                                                {% for codebook in project.codebooks %}
+                                                    <option value="{{ codebook.id }}" title="{{ codebook.name }}">
+                                                        {{ codebook.name }}
+                                                        {% if codebook.description %}
+                                                            <small class="text-muted"> - {{ codebook.description|truncate(50) }}</small>
+                                                        {% endif %}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    {% else %}
+                                        <div class="alert alert-warning mb-0">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            No codebooks found. Please create a codebook first.
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Analyze Button -->
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-primary btn-lg btn-analyze" id="analyzeBtn" {% if not project.media_items or not project.codebooks %}disabled{% endif %}>
+                                    <i class="fas fa-chart-line me-2"></i> Analyze Selection
+                                </button>
+                            </div>
+
+                            <!-- Results Section (initially hidden) -->
+                            <div id="analysisResults" class="mt-4 d-none">
+                                <div class="card">
+                                    <div class="card-header bg-light">
+                                        <h5 class="mb-0">Analysis Results</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="text-muted mb-0">Analysis results will appear here.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Excerpts Tab -->
+                <div class="tab-pane fade" id="excerpts" role="tabpanel" aria-labelledby="excerpts-tab">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">Project Excerpts</h5>
+                            <div class="d-flex align-items-center">
+                                <div class="me-2">Scope:</div>
+                                <select id="excerptScope" class="form-select form-select-sm" style="width:auto">
+                                    <option value="mine">Mine</option>
+                                    <option value="team" selected>Team</option>
+                                    <option value="all">All (incl. Public)</option>
+                                </select>
+                                <button id="refreshExcerpts" class="btn btn-sm btn-outline-secondary ms-2">
+                                    <i class="fas fa-rotate me-1"></i> Refresh
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5>Excerpts</h5>
+                                <button type="button" class="btn btn-success btn-sm" id="addExcerptBtn">
+                                    <i class="fas fa-plus me-1"></i> Add Excerpt
+                                </button>
+                            </div>
+                            <div id="excerptsTableContainer">
+                                <table id="excerptsTable" class="table table-striped table-bordered excerpts-table" style="width:100%">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 5%;">ID</th>
+                                            <th style="width: 15%;">Media</th>
+                                            <th style="width: 10%;">Code</th>
+                                            <th style="width: 10%;">Subcode</th>
+                                            <th style="width: 25%;">Excerpt</th>
+                                            <th style="width: 25%;">Explanation</th>
+                                            <th style="width: 10%;">Created At</th>
+                                            <th style="width: 10%;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Populated dynamically via JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="excerptsEmpty" class="text-center py-4 d-none">
+                                <i class="fas fa-quote-right fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No excerpts found for this project.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'projects/_excerpt_modal.html' %}
+{% include 'projects/_view_excerpt_modal.html' %}
+
+<!-- Add Collaborator Modal -->
+<div class="modal fade" id="addCollaboratorModal" tabindex="-1" aria-labelledby="addCollaboratorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addCollaboratorModalLabel">Add Collaborator</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addCollaboratorForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="collaboratorEmail" class="form-label">User's Email</label>
+                        <input type="email" class="form-control" id="collaboratorEmail" required
+                               placeholder="Enter user's email address">
+                        <div class="form-text">The user will receive access to this project.</div>
+                    </div>
+                    <div id="addCollaboratorAlert" class="alert d-none" role="alert"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <span class="spinner-border spinner-border-sm d-none" id="addCollaboratorSpinner" role="status" aria-hidden="true"></span>
+                        Add Collaborator
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<style>
+    .select2-results__option {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        padding: 8px 12px;
+        border-bottom: 1px solid #f5f5f5;
+    }
+
+    .select2-results__option:last-child {
+        border-bottom: none;
+    }
+
+    .select2-dropdown {
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+    }
+
+    .select2-container--bootstrap-5 .select2-results__options {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .analysis-form select[multiple] {
+        overflow-y: auto !important;
+    }
+
+    .analysis-form select[multiple] option {
+        padding: 8px 12px;
+        border-bottom: 1px solid 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .analysis-form select[multiple] option:last-child {
+        border-bottom: none;
+    }
+
+    .analysis-form .form-select,
+    .analysis-form .select2-container--bootstrap-5 .select2-selection {
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        color: #212529;
+        background-color: #fff;
+        background-clip: padding-box;
+        border: 1px solid #ced4da;
+        appearance: none;
+        border-radius: 0.375rem;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+</style>
+<script>
+$(document).ready(function() {
+    // --------- tiny helper for analysis banner ----------
+    function showAnalysisStatus(message, type='success') {
+        const $el = $('#analysisStatus');
+        $el.removeClass('d-none alert-success alert-danger alert-info')
+           .addClass('alert-' + type)
+           .text(message);
+    }
+
+    // Helper function to show alerts in collaborator modal
+    function showAlert(message, type) {
+        const alertDiv = $('#addCollaboratorAlert');
+        alertDiv.removeClass('d-none alert-success alert-danger')
+                .addClass(`alert-${type}`)
+                .html(`<i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} me-2"></i> ${message}`);
+
+        if (type === 'success') {
+            setTimeout(() => {
+                alertDiv.fadeOut(500, function() {
+                    $(this).addClass('d-none').show();
+                });
+            }, 3000);
+        }
+    }
+
+    // Add collaborator form submission
+    $('#addCollaboratorForm').on('submit', function(e) {
+        e.preventDefault();
+
+        const email = $('#collaboratorEmail').val().trim();
+        const alertDiv = $('#addCollaboratorAlert');
+        const submitBtn = $(this).find('button[type="submit"]');
+        const spinner = $('#addCollaboratorSpinner');
+
+        alertDiv.addClass('d-none').removeClass('alert-success alert-danger').text('');
+
+        if (!email) {
+            showAlert('Please enter an email address', 'danger');
+            return;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            showAlert('Please enter a valid email address', 'danger');
+            return;
+        }
+
+        submitBtn.prop('disabled', true);
+        spinner.removeClass('d-none');
+
+        $.ajax({
+            url: '{{ url_for("add_collaborator", project_id=project.id) }}',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ email: email }),
+            dataType: 'json',
+            success: function(response) {
+                if (response && response.success) {
+                    showAlert('Collaborator added successfully!', 'success');
+
+                    const collaborator = response.collaborator;
+                    const collaboratorHtml = `
+                        <div class="d-flex align-items-center mb-3 collaborator-item" data-user-id="${collaborator.id}">
+                            <div class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                ${collaborator.name ? collaborator.name[0].toUpperCase() : (collaborator.email ? collaborator.email[0].toUpperCase() : '')}
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0">${collaborator.name || collaborator.email || 'Unknown User'}</h6>
+                                <small class="text-muted">${collaborator.email || ''}</small>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger remove-collaborator"
+                                    data-user-id="${collaborator.id}"
+                                    data-user-name="${collaborator.name || collaborator.email || 'User'}"
+                                    data-remove-url="/projects/{{ project.id }}/remove_collaborator/${collaborator.id}">
+                                <i class="fas fa-user-minus"></i> Remove
+                            </button>
+                        </div>`;
+
+                    if ($('#collaboratorsList .text-center').length) {
+                        $('#collaboratorsList').html(collaboratorHtml);
+                    } else {
+                        $('#collaboratorsList').append(collaboratorHtml);
+                    }
+
+                    $('#collaboratorEmail').val('');
+
+                    setTimeout(() => {
+                        $('#addCollaboratorModal').modal('hide');
+                    }, 1500);
+                } else {
+                    const errorMessage = response && response.message
+                        ? response.message
+                        : 'An unexpected error occurred while adding the collaborator';
+                    showAlert(errorMessage, 'danger');
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'An error occurred while adding the collaborator';
+                try {
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    } else if (xhr.responseText) {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response && response.message) {
+                            errorMessage = response.message;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error parsing error response:', e);
+                }
+                showAlert(errorMessage, 'danger');
+            },
+            complete: function() {
+                submitBtn.prop('disabled', false);
+                spinner.addClass('d-none');
+            }
+        });
+    });
+
+    // Handle analyze button click (UPDATED: show only success message and switch to Excerpts tab)
+    $('#analyzeBtn').on('click', function() {
+        const selectedMedia = $('#mediaSelect').val() || [];
+        const selectedCodebook = $('#codebookSelect').val();
+        const projectId = {{ project.id }};
+
+        if (selectedMedia.length === 0 || !selectedCodebook) {
+            alert('Please select at least one media file and a codebook.');
+            return;
+        }
+
+        const $btn = $(this);
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Analyzing...');
+
+        $.ajax({
+            url: '{{ url_for("analyze_project") }}',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                media_ids: selectedMedia,
+                codebook_id: selectedCodebook,
+                project_id: projectId
+            }),
+            success: function(response) {
+                if (response.saved_excerpt_ids && response.saved_excerpt_ids.length > 0) {
+                    const resultsHtml = `
+                        <div class="card-body">
+                            <p class="text-success">
+                                Successfully saved ${response.saved_excerpt_ids.length} excerpts.
+                                <a href="#excerpts" class="nav-link d-inline" data-bs-toggle="tab" data-bs-target="#excerpts">View Excerpts</a>
+                            </p>
+                        </div>
+                    `;
+                    $('#analysisResults').html(resultsHtml).removeClass('d-none');
+
+                    showAnalysisStatus(`Successfully saved ${response.saved_excerpt_ids.length} excerpts.`, 'success');
+                    const tabTrigger = document.querySelector('#excerpts-tab');
+                    if (tabTrigger) {
+                        new bootstrap.Tab(tabTrigger).show();
+                    }
+                    loadExcerpts();
+                } else {
+                    $('#analysisResults').html(`
+                        <div class="card-body">
+                            <p class="text-muted">${response.explanation || 'No excerpts found.'}</p>
+                        </div>
+                    `).removeClass('d-none');
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'An error occurred during analysis.';
+                try {
+                    if (xhr.responseJSON && xhr.responseJSON.error) {
+                        errorMessage = xhr.responseJSON.error;
+                    }
+                } catch (e) { /* ignore */ }
+                $('#analysisResults').html(`
+                    <div class="card-body">
+                        <p class="text-danger">${errorMessage}</p>
+                    </div>
+                `).removeClass('d-none');
+            },
+            complete: function() {
+                $btn.prop('disabled', false).html('<i class="fas fa-chart-line me-2"></i> Analyze Selection');
+            }
+        });
+    });
+
+    // Function to load excerpts for the project
+    function loadExcerpts() {
+        const projectId = {{ project.id }};
+        const scope = $('#excerptScope').val() || 'team';
+
+        $.ajax({
+            url: '{{ url_for("get_excerpts") }}',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ project_id: projectId, scope: scope }),
+            success: function(response) {
+                const $tableBody = $('#excerptsTable tbody');
+                const $emptyState = $('#excerptsEmpty');
+                const $badge = $('#excerptsBadge');
+                const wasInitialized = $.fn.DataTable.isDataTable('#excerptsTable');
+
+                // If already initialized, destroy before rebuilding rows to avoid duplicate DataTable instances
+                if (wasInitialized) {
+                    $('#excerptsTable').DataTable().clear().destroy();
+                }
+
+                $tableBody.empty();
+
+                if (response.excerpts && response.excerpts.length > 0) {
+                    response.excerpts.forEach(excerpt => {
+                        const mediaUrl = excerpt.media_id ? `/media/view/${excerpt.media_id}` : '#';
+                        const mediaLink = excerpt.media_id
+                            ? `<a href="${mediaUrl}" target="_blank" class="text-primary text-decoration-none" title="${excerpt.media_filename || 'N/A'}">${excerpt.media_filename ? excerpt.media_filename.substring(0, 20) + (excerpt.media_filename.length > 20 ? '...' : '') : 'N/A'}</a>`
+                            : `<span class="text-muted">N/A</span>`;
+
+                        // ISO date for correct sorting + display string
+                        const iso = excerpt.created_at || null;
+                        const displayWhen = iso ? new Date(iso).toLocaleString('en-US', { timeZone: 'Africa/Nairobi' }) : '';
+
+                        $tableBody.append(`
+                            <tr class="excerpt-row">
+                                <td>${excerpt.id}</td>
+                                <td>${mediaLink}</td>
+                                <td>${excerpt.code || 'N/A'}</td>
+                                <td>${excerpt.subcode || 'N/A'}</td>
+                                <td class="excerpt-cell">${excerpt.excerpt ? $('<div>').text(excerpt.excerpt).html() : 'N/A'}</td>
+                                <td class="explanation-cell">${excerpt.explanation ? $('<div>').text(excerpt.explanation).html() : 'N/A'}</td>
+                                <td data-order="${iso || ''}">${displayWhen}</td>
+                                <td>
+                                    <a class="btn btn-sm btn-outline-primary" href="${mediaUrl}" target="_blank" title="View in context">
+                                        <i class="fas fa-eye me-1"></i> View
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-secondary edit-excerpt" data-id="${excerpt.id}" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `);
+                    });
+
+                    $tableBody.show();
+                    $emptyState.addClass('d-none');
+                    $badge.text(response.excerpts.length).removeClass('d-none');
+
+                    // Re-initialize DataTables with newest first by Created At
+                    $('#excerptsTable').DataTable({
+                        pageLength: 10,
+                        order: [[6, 'desc']], // uses data-order ISO for correct sorting
+                        columnDefs: [
+                            { targets: [4, 5, 7], orderable: false }
+                        ]
+                    });
+                } else {
+                    $tableBody.hide();
+                    $emptyState.removeClass('d-none');
+                    $badge.addClass('d-none');
+                }
+            },
+            error: function(xhr) {
+                $('#excerptsTableContainer').html(`
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Failed to load excerpts: ${xhr.responseJSON?.error || 'Unknown error'}
+                    </div>
+                `);
+            }
+        });
+    }
+
+    // Load excerpts when the excerpts tab is shown
+    $('button[data-bs-toggle="tab"][data-bs-target="#excerpts"]').on('shown.bs.tab', function () {
+        loadExcerpts();
+    });
+
+    // Manual refresh + scope change
+    $('#refreshExcerpts').on('click', loadExcerpts);
+    $('#excerptScope').on('change', loadExcerpts);
+
+    // Load excerpts immediately if the excerpts tab is active on page load
+    if ($('#excerpts').hasClass('active')) {
+        loadExcerpts();
+    }
+
+    // Media search functionality
+    $(document).on('input', '#mediaSearch', function() {
+        const searchTerm = $(this).val().toLowerCase();
+        const $select = $('#mediaSelect');
+
+        if (searchTerm === '') {
+            $select.find('option').show();
+        } else {
+            $select.find('option').each(function() {
+                const $option = $(this);
+                const matches = $option.data('search').includes(searchTerm);
+                $option.toggle(matches);
+            });
+        }
+        $select.trigger('change.select2');
+    });
+
+    // Initialize select2 for media multi-select if available
+    if (typeof $.fn.select2 === 'function') {
+        $('#mediaSelect').select2({
+            placeholder: 'Select media files',
+            width: '100%',
+            closeOnSelect: false,
+            dropdownAutoWidth: true,
+            dropdownParent: $('#analysis'),
+            theme: 'bootstrap-5',
+            templateResult: function(media) {
+                if (!media.id) return media.text;
+                return $('<div><i class="fas fa-file me-2"></i><span>' + media.text + '</span></div>');
+            },
+            templateSelection: function(media) { return media.text; }
+        });
+
+        $('#codebookSelect').select2({
+            placeholder: 'Select a codebook',
+            width: '100%',
+            theme: 'bootstrap-5',
+            dropdownParent: $('#analysis')
+        });
+    } else {
+        console.warn('Select2 not loaded; selects will use default browser UI.');
+    }
+
+    // Remove collaborator
+    $(document).on('click', '.remove-collaborator', function() {
+        const button = $(this);
+        const userId = button.data('user-id');
+        const userName = button.data('user-name');
+
+        if (confirm('Are you sure you want to remove ' + userName + ' from this project?')) {
+            const listItem = button.closest('.collaborator-item');
+            const removeUrl = button.data('remove-url');
+
+            $.ajax({
+                url: removeUrl,
+                method: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        listItem.fadeOut(300, function() {
+                            $(this).remove();
+
+                            if ($('.collaborator-item').length === 0) {
+                                const emptyState = '\
+                                    <div class="text-center py-4">\
+                                        <i class="fas fa-users fa-3x text-muted mb-3"></i>\
+                                        <p class="text-muted">No collaborators yet.</p>\
+                                        <p class="text-muted small">Add collaborators to work together on this project.</p>\
+                                    </div>';
+
+                                $('#collaboratorsList').remove();
+                                $('hr:last', '#collaborators .card-body').remove();
+                                $('.card-body > h6:contains("Collaborators")').remove();
+                                $('.card-body').append(emptyState);
+                            }
+                        });
+
+                        const alertHtml = '\
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">\
+                                <i class="fas fa-check-circle me-2"></i> ' + response.message + '\
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>\
+                            </div>';
+
+                        $('.card-body').prepend(alertHtml);
+
+                        setTimeout(() => {
+                            $('.alert').alert('close');
+                        }, 3000);
+                    } else {
+                        alert('Failed to remove collaborator: ' + (response.message || 'Unknown error'));
+                    }
+                },
+                error: function() {
+                    alert('An error occurred while removing the collaborator.');
+                }
+            });
+        }
+    });
+
+    // View/Edit handlers (stubs; your modals handle details)
+    $(document).on('click', '.view-excerpt', function() {
+        const excerptId = $(this).data('id');
+        console.log('View excerpt:', excerptId);
+    });
+    $(document).on('click', '.edit-excerpt', function() {
+        const excerptId = $(this).data('id');
+        console.log('Edit excerpt:', excerptId);
+    });
+});
+</script>
+{% endblock %}

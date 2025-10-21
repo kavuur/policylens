@@ -1,0 +1,146 @@
+{% extends "media/base.html" %}
+
+{% block media_content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Upload Media</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.file.label(class="form-label") }}
+                        {{ form.file(class="form-control" + (" is-invalid" if form.file.errors else "")) }}
+                        {% for error in form.file.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">Allowed file types: {{ allowed_extensions|join(', ') }}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows=3) }}
+                        {% for error in form.description.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.category.label(class="form-label") }}
+                            {{ form.category(class="form-select" + (" is-invalid" if form.category.errors else "")) }}
+                            {% for error in form.category.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            {{ form.type.label(class="form-label") }}
+                            {{ form.type(class="form-select" + (" is-invalid" if form.type.errors else "")) }}
+                            {% for error in form.type.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            {{ form.visibility.label(class="form-label d-block") }}
+                            {% for subfield in form.visibility %}
+                                <div class="form-check form-check-inline">
+                                    {{ subfield(class="form-check-input" + (" is-invalid" if form.visibility.errors else "")) }}
+                                    {{ subfield.label(class="form-check-label") }}
+                                </div>
+                            {% endfor %}
+                            {% for error in form.visibility.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            {{ form.project_id.label(class="form-label") }}
+                            {{ form.project_id(class="form-select" + (" is-invalid" if form.project_id.errors else "")) }}
+                            {% for error in form.project_id.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div id="descriptorsContainer">
+                        <!-- Dynamic descriptors will be added here -->
+                    </div>
+                    
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="addDescriptor">
+                            <i class="fas fa-plus me-1"></i> Add Descriptor
+                        </button>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('list_media') }}" class="btn btn-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-1"></i> Upload
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add new descriptor field
+    const container = document.getElementById('descriptorsContainer');
+    const addButton = document.getElementById('addDescriptor');
+    let descriptorCount = 0;
+
+    function addDescriptorField(key = '', value = '') {
+        const id = `descriptor-${descriptorCount++}`;
+        const div = document.createElement('div');
+        div.className = 'row mb-3 descriptor-row';
+        div.innerHTML = `
+            <div class="col-md-5">
+                <input type="text" name="descriptor_key_${id}" 
+                       class="form-control" placeholder="Key (e.g., year, author)" value="${key}">
+            </div>
+            <div class="col-md-6">
+                <input type="text" name="descriptor_value_${id}" 
+                       class="form-control" placeholder="Value" value="${value}">
+            </div>
+            <div class="col-md-1">
+                <button type="button" class="btn btn-outline-danger btn-sm remove-descriptor">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(div);
+        
+        // Add event listener for remove button
+        div.querySelector('.remove-descriptor').addEventListener('click', function() {
+            div.remove();
+        });
+    }
+    
+    // Add initial descriptor field
+    addDescriptorField();
+    
+    // Add button click handler
+    addButton.addEventListener('click', function() {
+        addDescriptorField();
+    });
+    
+    // Form submission
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        // No need to prevent default, let the form submit normally
+        // We'll handle the file upload with Flask-WTF
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Media - Policy Lens{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Media Library</h1>
+        <a href="{{ url_for('upload_media') }}" class="btn btn-primary d-none">
+            <i class="fas fa-upload me-2"></i>Upload Media..
+        </a>
+    </div>
+    
+    {% block media_content %}{% endblock %}
+</div>
+{% endblock %}

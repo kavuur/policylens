@@ -1,0 +1,61 @@
+<!-- Excerpt Modal -->
+<div class="modal fade" id="excerptModal" tabindex="-1" aria-labelledby="excerptModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="excerptModalLabel">Add New Excerpt</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="excerptForm">
+                <div class="modal-body">
+                    <input type="hidden" id="excerptId" name="excerpt_id">
+                    <input type="hidden" name="project_id" value="{{ project.id }}">
+                    
+                    <div class="mb-3">
+                        <label for="excerptMedia" class="form-label">Media</label>
+                        <select class="form-select" id="excerptMedia" name="media_id" required>
+                            <option value="">Select media...</option>
+                            {% for media in project.media_items %}
+                            <option value="{{ media.id }}">{{ media.filename }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="excerptCode" class="form-label">Code</label>
+                                <input type="text" class="form-control" id="excerptCode" name="code" placeholder="e.g., THEME1">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="excerptSubcode" class="form-label">Subcode (optional)</label>
+                                <input type="text" class="form-control" id="excerptSubcode" name="subcode" placeholder="e.g., SUB1">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="excerptText" class="form-label">Excerpt</label>
+                        <textarea class="form-control" id="excerptText" name="excerpt" rows="4" required 
+                                  placeholder="Paste the relevant text excerpt here..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="excerptExplanation" class="form-label">Explanation (optional)</label>
+                        <textarea class="form-control" id="excerptExplanation" name="explanation" rows="3"
+                                  placeholder="Add your analysis or notes about this excerpt..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveExcerptBtn">
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        Save Excerpt
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -91,7 +91,7 @@ PolicyLensAI is an AI-enabled web application that helps policy researchers anal
 ### 🧠 Authors
 
 Developed under the **PolicyLensAI** initiative at the **African Population and Health Research Center (APHRC)**
-Lead AI Engineer: **Dr. Tatenda Duncan Kavu**, Lead Full Stack Developer: **David Wanambwa**, Policy Expert: **Henry Owoko Odero** 
+Lead AI Expert: **Dr. Tatenda Duncan Kavu**, Lead Full Stack Developer: **David Wanambwa**, Policy Expert: **Henry Owoko Odero** 
 
 ---
 

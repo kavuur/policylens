@@ -1,4 +1,4 @@
-**# PolicyLensAI — Intelligent Policy Analysis Platform**
+# PolicyLensAI — Intelligent Policy Analysis Platform
 
 PolicyLensAI is an AI-enabled web application that helps policy researchers analyze, compare, and improve policy documents. It integrates document processing, evidence retrieval, and large-language-model (LLM) analysis into an interactive research workflow. Built with modern RAG services, the app supports structured policy review, automated excerpt extraction, and live drafting assistance.
 

@@ -1,38 +1,29 @@
 from app import app, db
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 
 def upgrade():
     with app.app_context():
         with db.engine.connect() as conn:
             # Start a transaction
             with conn.begin():
-                # Check if project_id column exists
-                result = conn.execute(
-                    text("PRAGMA table_info(codebook)")
-                ).fetchall()
-                
-                # Check if project_id column exists
-                has_project_id = any(col[1] == 'project_id' for col in result)
-                
+                inspector = inspect(db.engine)
+                cols = [c['name'] for c in inspector.get_columns('codebook')]
+
+                has_project_id = 'project_id' in cols
+
                 if not has_project_id:
                     print("Adding project_id column to codebook table...")
-                    # Add the project_id column
-                    conn.execute(text('''
-                        ALTER TABLE codebook 
-                        ADD COLUMN project_id INTEGER 
-                        REFERENCES project(id)
-                    '''))
+                    conn.execute(text("ALTER TABLE codebook ADD COLUMN project_id INTEGER REFERENCES project(id)"))
                     print("Added project_id column to codebook table.")
                 else:
                     print("project_id column already exists in codebook table.")
-                
+
                 # Verify the changes
-                result = conn.execute(
-                    text("PRAGMA table_info(codebook)")
-                ).fetchall()
+                inspector = inspect(db.engine)
+                cols_details = inspector.get_columns('codebook')
                 print("\nCurrent codebook table structure:")
-                for col in result:
-                    print(f"Column: {col[1]}, Type: {col[2]}, Nullable: {not col[3]}")
+                for col in cols_details:
+                    print(f"Column: {col['name']}, Type: {col.get('type')}, Nullable: {col.get('nullable')}")
 
 if __name__ == '__main__':
     upgrade()

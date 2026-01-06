@@ -1,20 +1,15 @@
-import sqlite3
-import os
+import importlib
+from sqlalchemy import text
 
-dbs = ['policylens.db', 'instance/policylens.db']
+app_module = importlib.import_module('app')
+app = app_module.app
+db = app_module.db
 
-for db_path in dbs:
-    if os.path.exists(db_path):
-        print(f"--- Checking {db_path} ---")
-        try:
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT id, username, email, is_admin, is_view_only_admin FROM user")
-            rows = cursor.fetchall()
-            for row in rows:
-                print(row)
-            conn.close()
-        except Exception as e:
-            print(f"Error reading {db_path}: {e}")
-    else:
-        print(f"--- {db_path} does not exist ---")
+with app.app_context():
+    try:
+        result = db.session.execute(text('SELECT id, username, email, is_admin, is_view_only_admin FROM "user"'))
+        rows = result.fetchall()
+        for row in rows:
+            print(row)
+    except Exception as e:
+        print(f"Error querying users: {e}")

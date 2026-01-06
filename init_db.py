@@ -1,8 +1,12 @@
 from app import app, db
-from models import User
+from models.models import User
 
 def init_db():
     with app.app_context():
+
+        # # clear existing data and create fresh tables
+        # db.drop_all()
+
         # Create all database tables
         db.create_all()
         

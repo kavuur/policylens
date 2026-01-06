@@ -16,7 +16,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=True)
-    password_hash = db.Column(db.String(128), nullable=True)  # Will store hashed passwords
+    password_hash = db.Column(db.String(200), nullable=True)  # Will store hashed passwords
     is_active = db.Column(db.Boolean(), default=True)
     is_admin = db.Column(db.Boolean(), default=False)
     is_view_only_admin = db.Column(db.Boolean(), default=False)

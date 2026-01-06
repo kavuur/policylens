@@ -1,42 +1,33 @@
 from app import app, db
+from sqlalchemy import inspect, text
 
 def upgrade():
     with app.app_context():
-        # Add project_id column to codebook table if it doesn't exist
-        db.engine.execute('''
-            PRAGMA foreign_keys=off;
-            BEGIN TRANSACTION;
-            
-            -- Create a new table with the correct schema
-            CREATE TABLE codebook_new (
-                id INTEGER NOT NULL, 
-                name VARCHAR(200) NOT NULL, 
-                description TEXT, 
-                created_at DATETIME, 
-                updated_at DATETIME, 
-                user_id INTEGER NOT NULL, 
-                project_id INTEGER, 
-                PRIMARY KEY (id), 
-                FOREIGN KEY(user_id) REFERENCES user (id), 
-                FOREIGN KEY(project_id) REFERENCES project (id)
-            );
-            
-            -- Copy data from old table to new table
-            INSERT INTO codebook_new (id, name, description, created_at, updated_at, user_id)
-            SELECT id, name, description, created_at, updated_at, user_id FROM codebook;
-            
-            -- Drop old table and rename new one
-            DROP TABLE codebook;
-            ALTER TABLE codebook_new RENAME TO codebook;
-            
-            -- Recreate indexes
-            CREATE INDEX ix_codebook_user_id ON codebook (user_id);
-            CREATE INDEX ix_codebook_project_id ON codebook (project_id);
-            
-            COMMIT;
-            PRAGMA foreign_keys=on;
-        ''')
-        print("Database schema updated successfully!")
+        inspector = inspect(db.engine)
+        cols = [c['name'] for c in inspector.get_columns('codebook')]
+
+        if 'project_id' not in cols:
+            print('Adding project_id column to codebook table...')
+            db.session.execute(text('ALTER TABLE codebook ADD COLUMN project_id INTEGER REFERENCES project(id)'))
+            # Ensure index exists
+            try:
+                db.session.execute(text('CREATE INDEX IF NOT EXISTS ix_codebook_project_id ON codebook (project_id)'))
+            except Exception:
+                # Some older SQLAlchemy/Postgres combos may not support IF NOT EXISTS
+                try:
+                    db.session.execute(text('CREATE INDEX ix_codebook_project_id ON codebook (project_id)'))
+                except Exception:
+                    pass
+            db.session.commit()
+            print('Added project_id column to codebook table.')
+        else:
+            print('project_id column already exists in codebook table.')
+
+        # Print current structure via inspector
+        cols_details = inspector.get_columns('codebook')
+        print('\nCurrent codebook table structure:')
+        for col in cols_details:
+            print(f"Column: {col['name']}, Type: {col.get('type')}, Nullable: {col.get('nullable')}")
 
 if __name__ == '__main__':
     upgrade()

@@ -1,14 +1,12 @@
-import sqlite3
-import os
+import sys
+import importlib
+from sqlalchemy import inspect
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'policylens.db')
+app_module = importlib.import_module('app')
+app = app_module.app
+db = app_module.db
 
-try:
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    tables = cursor.fetchall()
-    print("Tables found:", [t[0] for t in tables])
-    conn.close()
-except Exception as e:
-    print(f"Error: {e}")
+with app.app_context():
+    inspector = inspect(db.engine)
+    tables = inspector.get_table_names()
+    print("Tables found:", tables)

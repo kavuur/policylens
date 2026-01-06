@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Policy Lens{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">Dashboard</h1>
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">Welcome, {{ current_user.username }}!</h2>
+                    <p class="lead">This is your Policy Lens dashboard.</p>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-file-alt fa-3x text-primary mb-3"></i>
+                                    <h5 class="card-title">My Projects</h5>
+                                    <p class="card-text">Manage your policy analysis projects</p>
+                                    <a href="#" class="btn btn-outline-primary">View Projects</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-book fa-3x text-success mb-3"></i>
+                                    <h5 class="card-title">Codebooks</h5>
+                                    <p class="card-text">Access and manage your codebooks</p>
+                                    <a href="#" class="btn btn-outline-success">View Codebooks</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-search fa-3x text-info mb-3"></i>
+                                    <h5 class="card-title">Research</h5>
+                                    <p class="card-text">Explore policy research</p>
+                                    <a href="#" class="btn btn-outline-info">Start Research</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,241 @@
+        btnsave.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                new AlertDialog.Builder(getContext()).setTitle("Confirm Save").setMessage("Are you sure you want to save?").setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+
+                        Globals.getInstance().profile = profile;
+
+                        if (profile.primaryCaregiver == null) {
+                            Toast.makeText(getContext(), "FILL IN CARE GIVER", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        if (profile.getPrimaryCaregiverRelation() == null) {
+                            Toast.makeText(getContext(), "FILL IN CARE GIVER RELATION TO CHILD", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        if (profile.getPrimaryCaregiverRelation().getId().equals("0000")) {
+                            Toast.makeText(getContext(), "FILL IN CARE GIVER RELATION TO CHILD", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        if (profile.getPrimaryCaregiver().last_name == null) {
+                            Toast.makeText(getContext(), "FILL IN CARE GIVER LAST NAME", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        if (profile.getPrimaryCaregiver().getDob() == null) {
+                            Toast.makeText(getContext(), "FILL IN CARE GIVER birthdate", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        if (profile.getPrimaryCaregiver().last_name == null) {
+                            Toast.makeText(getContext(), "FILL IN CARE GIVER LAST NAME", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        if (profile.getPrimaryCaregiver().first_name == null) {
+                            Toast.makeText(getContext(), "FILL IN CARE GIVER FIRST NAME", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+
+                        if (profile.getPrimaryCaregiver().national_id == null) {
+                            Toast.makeText(getContext(), "NATIONAL ID OR PHONE NUMBER IN PLACE OF ID", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+
+                        if (profile.primaryCaregiver.contact == null) {
+                            Toast.makeText(getContext(), "FILL IN CARE GIVER PHONE", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        if (profile.primaryCaregiver.occupation == null) {
+                            Toast.makeText(getContext(), "FILL IN CARE GIVER OCCUPATION", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+
+                        try {
+                            if (profile.getPrimaryCaregiver().getFirst_name().length() < 2)
+                                Toast.makeText(getContext(), "Unknown Place of birth", Toast.LENGTH_SHORT).show();
+                            //return;
+                        } catch (Exception c) {
+                        }
+
+                        try {
+                            birthDetails.setBirthLength(Double.parseDouble(birthlntx.getText().toString()));
+                        } catch (Exception v) {
+
+                        }
+
+                        Lookup placeOfBirth = (Lookup) placespinner.getSelectedItem();
+
+
+                        if (placeOfBirth.getId().equals("0000")) {
+                            Toast.makeText(getContext(), "Unknown Place of birth", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+
+
+                        // if( birthDetails.getBirthCertificateNo()
+                        try {
+                            if (birthDetails.getBirthCertificateNo().length() < 3) {
+                                birthDetails.setBirthNotificationNo(null);
+                            }
+                        } catch (Exception c) {
+
+                        }
+
+                        profile.setBirthDetails(birthDetails);
+
+
+                        if (profile.getPrimaryCaregiver() == null) {
+                            Toast.makeText(getContext(), "Unknown Primary care giver", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+
+                        if ((profile.getHdss() == null) || (profile.getHdss().length() < 2)) {
+
+
+                        }
+                        try {
+                            if (profile.getBirthDetails().birthCertificateNo.length() < 2) {
+                                profile.getBirthDetails().birthCertificateNo = "NONE" + Globals.generateRandomString(4);
+                            }
+
+                        } catch (Exception c) {
+                            //   profile.getBirthDetails().birthCertificateNo = null;
+                        }
+                        if (profile.getPrimaryCaregiverRelation() == null || profile.getPrimaryCaregiverRelation().equals("00")) {
+                            Toast.makeText(getContext(), "Enter Primary care giver relation", Toast.LENGTH_SHORT).show();
+
+                            return;
+                        }
+
+
+                        if (profile.getPrimaryCaregiverRelation() == null || profile.getPrimaryCaregiverRelation().equals("0000")) {
+                            Toast.makeText(getContext(), "Enter Primary care giver relation", Toast.LENGTH_SHORT).show();
+
+                            return;
+                        }
+                        if (profile.primaryCaregiver.getContact().length() < 3) {
+                            Toast.makeText(getContext(), "Enter Primary care phone", Toast.LENGTH_SHORT).show();
+
+                            return;
+                        }
+
+
+                        if (birthDetails == null) {
+                            Toast.makeText(getContext(), "mising birth details", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+
+                        btnsave.setEnabled(false);
+
+
+                        if (profile.getPrimaryCaregiver().contact.length() > 3)
+                            Globals.getInstance().usersearch = profile.getPrimaryCaregiver().contact;
+                        else
+                            Globals.getInstance().usersearch = profile.getPrimaryCaregiver().last_name;
+                        //profile.setChildDetails();
+
+
+                        //Glo
+                        profile.getPrimaryCaregiver().setCreated_at("2024-01-1");
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Profile newprofile = new Profile(profile);
+                                Lookup placeOfBirth = (Lookup) placespinner.getSelectedItem();
+
+                                PlaceOfBirth pp = new PlaceOfBirth();
+                                pp.created_at = "2024-01-1";
+                                pp.name = placeOfBirth.getName().replace(" ", "");
+                                pp.id = placeOfBirth.getId();
+
+                                if (placeOfBirth.getId().equals("0000")) {
+
+                                }
+
+                                if (pp.id.equals("86366b0e-29fd-11ee-8027-0242ac120002")) {
+                                    newprofile.birthDetails.setFacilityOfBirth(facilityOfBirth);
+                                    newprofile.birthDetails.setSpecifyPlaceOfBirth("none specified");
+                                } else {
+
+                                    newprofile.birthDetails.setSpecifyPlaceOfBirth(otherbirth.getText().toString());
+                                }
+                                newprofile.birthDetails.setPlaceOfBirth(pp);
+
+
+                                String newid = newprofile.getId();
+                                profile.setVaccinationHistory(new ArrayList<>());
+                                newprofile.setVaccinationHistory(new ArrayList<>());
+
+                                ArrayList<String> s = newprofile.checkForNullAttributes();
+
+                                Globals.getInstance().db.profileDao().insert(newprofile);
+                                Globals.getInstance().mode.equals("edit");
+
+                                String jsonString = getString(R.string.vaccines_json);
+
+                                List<ScheduledVisit> scheduledVisits = new ArrayList<>();
+                                try {
+                                    JSONArray jsonArray = new JSONArray(jsonString);
+                                    for (int i = 0; i < jsonArray.length(); i++) {
+                                        JSONObject jsonObject = jsonArray.getJSONObject(i);
+
+                                        Vaccine vaccine = new Vaccine();
+                                        vaccine.setId(jsonObject.getString("id"));
+                                        vaccine.setName(jsonObject.getString("name"));
+                                        vaccine.setProtects_against(jsonObject.getString("protects_against"));
+                                        vaccine.setMode_of_administration(jsonObject.getString("mode_of_administration"));
+                                        vaccine.setWeek(jsonObject.getInt("week"));
+                                        vaccine.setRoutine(jsonObject.getBoolean("routine"));
+                                        vaccine.setCategory(jsonObject.optString("category", null));
+
+                                        String id = jsonObject.getString("id");
+                                        String name = jsonObject.getString("name");
+                                        String vaccineId = id;
+                                        String profileId = newid;
+                                        int childs_age_in_weeks = jsonObject.getInt("week");
+                                        boolean is_routine = jsonObject.getBoolean("routine");
+                                        String scheduled_date = DateUtils.addWeeksToDate(profile.getChildDetails().getDob(), childs_age_in_weeks);
+                                        String start_date = scheduled_date;
+                                        String end_date = DateUtils.addWeeksToDate(profile.getChildDetails().getDob(), childs_age_in_weeks + 1);
+                                        boolean administered = false;
+                                        String reasonVaccineNotGivenId = null;
+                                        String reason_vaccine_not_given_notes = null;
+
+                                        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+
+                                        Calendar calendar = Calendar.getInstance();
+                                        String created_at = sdf.format(calendar.getTime());
+
+                                        ScheduledVisit scheduledVisit = new ScheduledVisit(0, profileId, vaccineId, childs_age_in_weeks, is_routine, scheduled_date, start_date, end_date, administered, reasonVaccineNotGivenId, reason_vaccine_not_given_notes, created_at, vaccine);
+                                        Globals.getInstance().db.scheduledVisitDao().insert(scheduledVisit);
+                                        Globals.getInstance().profile.setId(profileId);
+                                        scheduledVisits.add(scheduledVisit);
+                                    }
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
+
+                                requireActivity().runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        // Create an ArrayAdapter using the retrieved items
+
+                                        btnsave.setEnabled(false);
+                                        Toast.makeText(getContext(), "child data saved", Toast.LENGTH_SHORT).show();
+                                        if (getActivity() != null) {
+                                            getActivity().finish();
+                                        }
+
+                                        // Notify that the task is complete
+
+                                    }
+                                });
+                            }
+
+
+                        }).start();
+                    }
+                }).setNegativeButton("No", null).show();
+            }
+        });

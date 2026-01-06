@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - Policy Lens{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">My Profile</h4>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs mb-4" id="profileTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="bio-tab" data-bs-toggle="tab" data-bs-target="#bio" type="button" role="tab" aria-controls="bio" aria-selected="true">
+                                <i class="fas fa-user me-2"></i>Profile Information
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab" aria-controls="security" aria-selected="false">
+                                <i class="fas fa-lock me-2"></i>Security
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="profileTabsContent">
+                        <!-- Bio Tab -->
+                        <div class="tab-pane fade show active" id="bio" role="tabpanel" aria-labelledby="bio-tab">
+                            <form method="POST" action="{{ url_for('profile') }}">
+                                {{ bio_form.hidden_tag() }}
+                                <input type="hidden" name="form_type" value="bio">
+                                <div class="row mb-3">
+                                    <div class="col-md-6 mb-3">
+                                        {{ bio_form.name.label(class="form-label") }}
+                                        {{ bio_form.name(class="form-control") }}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        {{ bio_form.email.label(class="form-label") }}
+                                        {{ bio_form.email(class="form-control", disabled=true) }}
+                                        <small class="form-text text-muted">Contact support to change your email</small>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-4 mb-3">
+                                        {{ bio_form.age_group.label(class="form-label") }}
+                                        {{ bio_form.age_group(class="form-select") }}
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        {{ bio_form.sex.label(class="form-label") }}
+                                        {{ bio_form.sex(class="form-select") }}
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        {{ bio_form.industry.label(class="form-label") }}
+                                        {{ bio_form.industry(class="form-select") }}
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    {{ bio_form.organization.label(class="form-label") }}
+                                    {{ bio_form.organization(class="form-control") }}
+                                </div>
+                                <div class="text-end">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-save me-1"></i> Save Changes
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Security Tab -->
+                        <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
+                            <form method="POST" action="{{ url_for('profile') }}">
+                                {{ password_form.hidden_tag() }}
+                                <input type="hidden" name="form_type" value="password">
+                                <div class="mb-3">
+                                    {{ password_form.current_password.label(class="form-label") }}
+                                    {{ password_form.current_password(class="form-control") }}
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        {{ password_form.new_password.label(class="form-label") }}
+                                        {{ password_form.new_password(class="form-control") }}
+                                        <div class="form-text">Minimum 8 characters</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        {{ password_form.confirm_password.label(class="form-label") }}
+                                        {{ password_form.confirm_password(class="form-control") }}
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-key me-1"></i> Update Password
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Initialize tabs
+    var triggerTabList = [].slice.call(document.querySelectorAll('#profileTabs button'))
+    triggerTabList.forEach(function (triggerEl) {
+        var tabTrigger = new bootstrap.Tab(triggerEl)
+        triggerEl.addEventListener('click', function (event) {
+            event.preventDefault()
+            tabTrigger.show()
+        })
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,745 @@
+{% extends "media/base.html" %}
+
+{% block media_content %}
+<div class="explorer-container container-fluid p-0">
+    <div class="row g-0 h-100">
+        <!-- Sidebar -->
+        <div class="col-md-2 col-lg-2 explorer-sidebar border-end px-0">
+            <div class="p-2 px-3">
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                    <h6 class="mb-0 text-uppercase text-muted small fw-bold">Workspaces</h6>
+                    {% if not current_user.is_view_only_admin %}
+                    <a href="#" class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal"
+                        data-bs-target="#newProjectModal" title="New Project">
+                        <i class="fas fa-plus fa-xs me-1"></i> New
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="list-group list-group-flush explorer-nav-list">
+                    <a href="{{ url_for('list_media') }}"
+                        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {% if not current_project_id %}active{% endif %}">
+                        <span><i class="fas fa-inbox me-2"></i>All Files</span>
+                        <span class="badge bg-secondary-subtle text-secondary rounded-pill">{{ all_media_count }}</span>
+                    </a>
+                    {% for project in projects %}
+                    <a href="{{ url_for('list_media', project_id=project.id) }}"
+                        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {% if current_project_id == project.id %}active{% endif %}">
+                        <span><i class="fas fa-folder me-2"></i>{{ project.name }}</span>
+                        <span class="badge bg-secondary-subtle text-secondary rounded-pill">{{ project.media_count
+                            }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="col-md-10 col-lg-10">
+            <div class="h-100 d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom px-3 pt-3">
+                    <div>
+                        <h4 class="mb-1 text-dark fw-bold">
+                            {% set current_project = projects|selectattr('id', 'equalto', current_project_id)|first %}
+                            <i
+                                class="fas fa-{{ 'folder-open' if current_project_id else 'inbox' }} me-2 text-primary"></i>
+                            {{ current_project.name if current_project else 'All Files' }}
+                        </h4>
+                        <p class="text-muted small mb-0" id="fileCount">{{ media_items|length }} items</p>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <!-- View Toggle -->
+                        <div class="btn-group btn-group-sm view-toggle" role="group">
+                            <button type="button" class="btn btn-outline-secondary active" id="listViewBtn"
+                                title="List View">
+                                <i class="fas fa-list"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="gridViewBtn" title="Grid View">
+                                <i class="fas fa-th-large"></i>
+                            </button>
+                        </div>
+
+                        <!-- Search -->
+                        <div class="input-group input-group-sm search-box" style="width: 250px;">
+                            <span class="input-group-text bg-white border-end-0"><i
+                                    class="fas fa-search text-muted"></i></span>
+                            <input type="text" id="searchInput" class="form-control border-start-0 ps-0"
+                                placeholder="Search files..." value="{{ search_query }}">
+                            <button class="btn btn-outline-secondary border-start-0" type="button" id="clearSearch"
+                                title="Clear Search">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        {% if not current_user.is_view_only_admin %}
+                        <a href="{{ url_for('upload_media') }}"
+                            class="btn btn-primary btn-sm px-3 rounded-pill shadow-sm">
+                            <i class="fas fa-cloud-upload-alt me-1"></i> Upload
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Files Content -->
+                <div class="files-content flex-grow-1 overflow-auto px-3">
+                    {% if media_items %}
+
+                    <!-- List View -->
+                    <div id="listView" class="view-mode">
+                        <table class="table table-hover align-middle modern-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 40%;">Name</th>
+                                    <th style="width: 15%;">Owner</th>
+                                    <th style="width: 15%;">Date Modified</th>
+                                    <th style="width: 10%;">Size</th>
+                                    <th style="width: 20%;" class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for media in media_items %}
+                                <tr class="media-item" data-filename="{{ media.filename|lower }}"
+                                    data-id="{{ media.id }}">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="file-icon me-3">
+                                                {% if media.file_type and media.file_type.startswith('image/') %}
+                                                <img src="{{ url_for('uploaded_file', filename=media.filename) }}"
+                                                    alt="thumbnail" class="file-thumbnail">
+                                                {% else %}
+                                                {% set icon_data = {'class': 'fa-file', 'color': '#6c757d'} %}
+                                                {% if media.file_type %}
+                                                {% if 'pdf' in media.file_type %}{% set icon_data = {'class':
+                                                'fa-file-pdf', 'color': '#dc3545'} %}
+                                                {% elif 'word' in media.file_type or 'document' in media.file_type %}{%
+                                                set icon_data = {'class': 'fa-file-word', 'color': '#2b579a'} %}
+                                                {% elif 'excel' in media.file_type or 'sheet' in media.file_type %}{%
+                                                set icon_data = {'class': 'fa-file-excel', 'color': '#217346'} %}
+                                                {% elif 'powerpoint' in media.file_type or 'presentation' in
+                                                media.file_type %}{% set icon_data = {'class': 'fa-file-powerpoint',
+                                                'color': '#d24726'} %}
+                                                {% elif 'video' in media.file_type %}{% set icon_data = {'class':
+                                                'fa-file-video', 'color': '#0dcaf0'} %}
+                                                {% elif 'audio' in media.file_type %}{% set icon_data = {'class':
+                                                'fa-file-audio', 'color': '#ffc107'} %}
+                                                {% elif 'zip' in media.file_type or 'compressed' in media.file_type %}{%
+                                                set icon_data = {'class': 'fa-file-archive', 'color': '#fd7e14'} %}
+                                                {% elif 'text' in media.file_type %}{% set icon_data = {'class':
+                                                'fa-file-alt', 'color': '#6c757d'} %}
+                                                {% endif %}
+                                                {% endif %}
+                                                <i class="fas {{ icon_data.class }} fa-2x"
+                                                    style="color: {{ icon_data.color }};"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div class="file-info">
+                                                <a href="{{ url_for('view_media', media_id=media.id) }}"
+                                                    class="file-name text-decoration-none text-dark fw-medium">
+                                                    {{ media.filename }}
+                                                </a>
+                                                <div class="file-type small text-muted">{{ media.file_type or 'Unknown'
+                                                    }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="user-avatar me-2">
+                                                <i class="fas fa-user fa-xs"></i>
+                                            </div>
+                                            <span class="text-muted small">{{ media.user.name or media.user.username
+                                                }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-muted small">
+                                        {{ media.uploaded_at.strftime('%b %d, %Y') }}
+                                        <div class="text-muted" style="font-size: 0.7em;">{{
+                                            media.uploaded_at.strftime('%I:%M %p') }}</div>
+                                    </td>
+                                    <td class="text-muted small">{{ (media.file_size / 1024)|round(1) }} KB</td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm action-buttons">
+                                            <a href="{{ url_for('view_media', media_id=media.id) }}"
+                                                class="btn btn-outline-secondary" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if not current_user.is_view_only_admin %}
+                                            <a href="{{ url_for('edit_media', media_id=media.id) }}"
+                                                class="btn btn-outline-secondary" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            {% endif %}
+                                            <a href="{{ url_for('download_media', media_id=media.id) }}"
+                                                class="btn btn-outline-secondary" title="Download">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            {% if not current_user.is_view_only_admin %}
+                                            <button class="btn btn-outline-danger delete-media" data-id="{{ media.id }}"
+                                                data-filename="{{ media.filename }}" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Grid View -->
+                    <div id="gridView" class="view-mode" style="display: none;">
+                        <div class="file-grid">
+                            {% for media in media_items %}
+                            <div class="file-card media-item" data-filename="{{ media.filename|lower }}"
+                                data-id="{{ media.id }}">
+                                <div class="file-card-inner">
+                                    <div class="file-card-icon">
+                                        {% if media.file_type and media.file_type.startswith('image/') %}
+                                        <img src="{{ url_for('uploaded_file', filename=media.filename) }}"
+                                            alt="{{ media.filename }}" class="grid-thumbnail">
+                                        {% else %}
+                                        {% set icon_data = {'class': 'fa-file', 'color': '#6c757d'} %}
+                                        {% if media.file_type %}
+                                        {% if 'pdf' in media.file_type %}{% set icon_data = {'class': 'fa-file-pdf',
+                                        'color': '#dc3545'} %}
+                                        {% elif 'word' in media.file_type or 'document' in media.file_type %}{% set
+                                        icon_data = {'class': 'fa-file-word', 'color': '#2b579a'} %}
+                                        {% elif 'excel' in media.file_type or 'sheet' in media.file_type %}{% set
+                                        icon_data = {'class': 'fa-file-excel', 'color': '#217346'} %}
+                                        {% elif 'powerpoint' in media.file_type or 'presentation' in media.file_type
+                                        %}{% set icon_data = {'class': 'fa-file-powerpoint', 'color': '#d24726'} %}
+                                        {% elif 'video' in media.file_type %}{% set icon_data = {'class':
+                                        'fa-file-video', 'color': '#0dcaf0'} %}
+                                        {% elif 'audio' in media.file_type %}{% set icon_data = {'class':
+                                        'fa-file-audio', 'color': '#ffc107'} %}
+                                        {% elif 'zip' in media.file_type or 'compressed' in media.file_type %}{% set
+                                        icon_data = {'class': 'fa-file-archive', 'color': '#fd7e14'} %}
+                                        {% elif 'text' in media.file_type %}{% set icon_data = {'class': 'fa-file-alt',
+                                        'color': '#6c757d'} %}
+                                        {% endif %}
+                                        {% endif %}
+                                        <i class="fas {{ icon_data.class }}" style="color: {{ icon_data.color }};"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="file-card-name" title="{{ media.filename }}">{{ media.filename }}</div>
+                                    <div class="file-card-meta">
+                                        <span class="file-size">{{ (media.file_size / 1024)|round(1) }} KB</span>
+                                    </div>
+                                    <div class="file-card-actions">
+                                        <a href="{{ url_for('view_media', media_id=media.id) }}"
+                                            class="btn btn-sm btn-light" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('download_media', media_id=media.id) }}"
+                                            class="btn btn-sm btn-light" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                        {% if not current_user.is_view_only_admin %}
+                                        <button class="btn btn-sm btn-danger delete-media" data-id="{{ media.id }}"
+                                            data-filename="{{ media.filename }}" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning no-results text-center shadow-sm" style="display: none;">
+                        <i class="fas fa-search me-2"></i> No files match your search.
+                    </div>
+
+                    {% else %}
+                    <div class="empty-state text-center py-5">
+                        <div class="empty-icon mb-4">
+                            <i class="fas fa-cloud-upload-alt fa-4x text-primary opacity-25"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-2">No files yet</h5>
+                        <p class="text-muted mb-4">Upload documents, images, or media to get started.</p>
+                        {% if not current_user.is_view_only_admin %}
+                        <a href="{{ url_for('upload_media') }}" class="btn btn-primary px-4 rounded-pill">
+                            <i class="fas fa-plus me-2"></i>Upload File
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Status Bar -->
+                {% if media_items %}
+                <div class="status-bar mt-3 pt-3 border-top px-3 pb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            <span id="statusText">{{ media_items|length }} items</span>
+                        </div>
+                        <div class="text-muted small">
+                            Total size: <span id="totalSize">{{ (media_items|sum(attribute='file_size') / 1024)|round(1)
+                                }} KB</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+{% if not current_user.is_view_only_admin %}
+<div class="modal fade" id="newProjectModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Create New Project</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('create_project') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="projectName" class="form-label">Project Name</label>
+                        <input type="text" class="form-control" id="projectName" name="name" required
+                            placeholder="My Awesome Project">
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-body text-center p-4">
+                <div class="mb-3 text-danger">
+                    <i class="fas fa-exclamation-circle fa-3x"></i>
+                </div>
+                <h5 class="mb-2 fw-bold">Delete File?</h5>
+                <p class="text-muted mb-4">Are you sure you want to delete <strong id="deleteFilenamePlaceholder"
+                        class="text-dark"></strong>? This action cannot be undone.</p>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-danger" id="confirmDelete">Yes, Delete it</button>
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    /* Windows 11 Color Palette */
+    :root {
+        --win11-blue: #0078d4;
+        --win11-hover: #f3f3f3;
+        --win11-active: #e5f3ff;
+        --win11-border: #e0e0e0;
+        --win11-shadow: rgba(0, 0, 0, 0.08);
+        --win11-radius: 8px;
+    }
+
+    /* Container */
+    .explorer-container {
+        height: calc(100vh - 100px);
+        background-color: #fafafa;
+    }
+
+    /* Sidebar */
+    .explorer-sidebar {
+        background: white;
+        height: 100%;
+        overflow-y: auto;
+        box-shadow: 2px 0 8px var(--win11-shadow);
+    }
+
+    .explorer-nav-list .list-group-item {
+        border: none;
+        padding: 0.65rem 1rem;
+        margin-bottom: 0.15rem;
+        border-radius: var(--win11-radius);
+        color: #424242;
+        font-weight: 500;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .explorer-nav-list .list-group-item:hover {
+        background-color: var(--win11-hover);
+        transform: translateX(2px);
+    }
+
+    .explorer-nav-list .list-group-item.active {
+        background-color: var(--win11-active);
+        color: var(--win11-blue);
+        font-weight: 600;
+        box-shadow: inset 3px 0 0 var(--win11-blue);
+    }
+
+    .explorer-nav-list .list-group-item.active .badge {
+        background-color: var(--win11-blue) !important;
+        color: white !important;
+    }
+
+    /* Modern Table */
+    .modern-table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .modern-table thead th {
+        background-color: #f8f9fa;
+        border: none;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #6c757d;
+        padding: 0.75rem 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .modern-table tbody tr {
+        transition: all 0.2s;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .modern-table tbody tr:hover {
+        background-color: var(--win11-hover);
+        transform: scale(1.005);
+        box-shadow: 0 2px 8px var(--win11-shadow);
+    }
+
+    .modern-table tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        border: none;
+    }
+
+    /* File Icons */
+    .file-icon {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8f9fa;
+        border-radius: var(--win11-radius);
+        transition: all 0.2s;
+    }
+
+    .file-thumbnail {
+        width: 48px;
+        height: 48px;
+        object-fit: cover;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .file-name {
+        font-size: 0.95rem;
+        transition: color 0.2s;
+    }
+
+    .file-name:hover {
+        color: var(--win11-blue) !important;
+    }
+
+    .user-avatar {
+        width: 28px;
+        height: 28px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    /* Grid View */
+    .file-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 1rem;
+        padding: 0.5rem;
+    }
+
+    .file-card {
+        background: white;
+        border-radius: var(--win11-radius);
+        padding: 1rem;
+        text-align: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        border: 2px solid transparent;
+        box-shadow: 0 2px 4px var(--win11-shadow);
+    }
+
+    .file-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+        border-color: var(--win11-blue);
+    }
+
+    .file-card-icon {
+        font-size: 3.5rem;
+        margin-bottom: 0.75rem;
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .grid-thumbnail {
+        width: 100%;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 6px;
+    }
+
+    .file-card-name {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #212529;
+        margin-bottom: 0.5rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .file-card-meta {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-bottom: 0.75rem;
+    }
+
+    .file-card-actions {
+        display: flex;
+        gap: 0.25rem;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .file-card:hover .file-card-actions {
+        opacity: 1;
+    }
+
+    /* View Toggle */
+    .view-toggle .btn {
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .view-toggle .btn.active {
+        background-color: var(--win11-blue);
+        border-color: var(--win11-blue);
+        color: white;
+    }
+
+    /* Search Box */
+    .search-box input {
+        border-radius: 20px 0 0 20px;
+        transition: all 0.2s;
+    }
+
+    .search-box input:focus {
+        box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+        border-color: var(--win11-blue);
+    }
+
+    .search-box .input-group-text {
+        border-radius: 20px 0 0 20px;
+    }
+
+    .search-box button {
+        border-radius: 0 20px 20px 0;
+    }
+
+    /* Action Buttons */
+    .action-buttons .btn {
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .action-buttons .btn:hover {
+        transform: scale(1.1);
+    }
+
+    /* Status Bar */
+    .status-bar {
+        background: #f8f9fa;
+        border-radius: var(--win11-radius);
+        padding: 0.5rem 1rem;
+    }
+
+    /* Empty State */
+    .empty-state {
+        background: white;
+        border-radius: var(--win11-radius);
+        box-shadow: 0 2px 8px var(--win11-shadow);
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .media-item {
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    /* Scrollbar */
+    .files-content::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .files-content::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    .files-content::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 10px;
+    }
+
+    .files-content::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // View Toggle
+        const listViewBtn = document.getElementById('listViewBtn');
+        const gridViewBtn = document.getElementById('gridViewBtn');
+        const listView = document.getElementById('listView');
+        const gridView = document.getElementById('gridView');
+
+        // Load saved view preference
+        const savedView = localStorage.getItem('mediaView') || 'list';
+        if (savedView === 'grid') {
+            switchToGrid();
+        }
+
+        listViewBtn.addEventListener('click', switchToList);
+        gridViewBtn.addEventListener('click', switchToGrid);
+
+        function switchToList() {
+            listView.style.display = 'block';
+            gridView.style.display = 'none';
+            listViewBtn.classList.add('active');
+            gridViewBtn.classList.remove('active');
+            localStorage.setItem('mediaView', 'list');
+        }
+
+        function switchToGrid() {
+            listView.style.display = 'none';
+            gridView.style.display = 'block';
+            gridViewBtn.classList.add('active');
+            listViewBtn.classList.remove('active');
+            localStorage.setItem('mediaView', 'grid');
+        }
+
+        // Search Functionality
+        const searchInput = document.getElementById('searchInput');
+        const clearSearch = document.getElementById('clearSearch');
+        const noResults = document.querySelector('.no-results');
+
+        function filterMedia() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const items = document.querySelectorAll('.media-item');
+            let visibleCount = 0;
+
+            items.forEach(item => {
+                const filename = item.dataset.filename;
+                if (filename.includes(searchTerm)) {
+                    item.style.display = '';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            // Update status
+            document.getElementById('statusText').textContent = `${visibleCount} items${searchTerm ? ' (filtered)' : ''}`;
+
+            if (noResults) {
+                noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+            }
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', filterMedia);
+            clearSearch.addEventListener('click', () => {
+                searchInput.value = '';
+                filterMedia();
+            });
+        }
+
+        // Delete Functionality
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        let deleteId = null;
+
+        document.querySelectorAll('.delete-media').forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                deleteId = this.dataset.id;
+                document.getElementById('deleteFilenamePlaceholder').textContent = this.dataset.filename;
+                deleteModal.show();
+            });
+        });
+
+        document.getElementById('confirmDelete').addEventListener('click', function () {
+            if (!deleteId) return;
+
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Deleting...';
+
+            fetch(`/media/delete/${deleteId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                }
+            })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Failed to delete file.');
+                        btn.disabled = false;
+                        btn.textContent = 'Yes, Delete it';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Error deleting file.');
+                    btn.disabled = false;
+                    btn.textContent = 'Yes, Delete it';
+                });
+        });
+    });
+</script>
+{% endblock %}

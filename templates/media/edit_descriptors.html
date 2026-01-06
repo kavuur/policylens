@@ -1,0 +1,257 @@
+{% extends "media/base.html" %}
+
+{% block media_content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Edit Descriptors: {{ media.filename }}</h5>
+        <a href="{{ url_for('list_media') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i> Back to Media
+        </a>
+    </div>
+    <div class="card-body">
+        <div class="mb-4">
+            <h6>File Information</h6>
+            <div class="p-3 bg-light rounded">
+                <p class="mb-1"><strong>Description:</strong> {{ media.description or 'No description' }}</p>
+                <p class="mb-1"><strong>Type:</strong> <span class="badge bg-info text-dark">{{ media.type|title }}</span></p>
+                <p class="mb-1"><strong>Category:</strong> <span class="badge bg-secondary">{{ media.category|title or 'Uncategorized' }}</span></p>
+            </div>
+        </div>
+
+        <h6 class="mb-3">Descriptors</h6>
+        
+        <div class="table-responsive mb-4">
+            <table class="table table-hover" id="descriptorsTable">
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Value</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for descriptor in media.descriptors %}
+                    <tr id="descriptor-{{ descriptor.id }}">
+                        <td class="descriptor-key">{{ descriptor.key }}</td>
+                        <td class="descriptor-value">{{ descriptor.value }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary edit-descriptor" data-id="{{ descriptor.id }}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger delete-descriptor" data-id="{{ descriptor.id }}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <!-- Empty row for adding new descriptor -->
+                    <tr id="newDescriptorRow">
+                        <td><input type="text" class="form-control form-control-sm" id="newKey" placeholder="Key"></td>
+                        <td><input type="text" class="form-control form-control-sm" id="newValue" placeholder="Value"></td>
+                        <td>
+                            <button class="btn btn-sm btn-success" id="addDescriptor">
+                                <i class="fas fa-plus"></i> Add
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden form for editing -->
+<div id="editFormContainer" class="d-none">
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0">Edit Descriptor</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-5">
+                    <input type="text" class="form-control" id="editKey" placeholder="Key">
+                </div>
+                <div class="col-md-5">
+                    <input type="text" class="form-control" id="editValue" placeholder="Value">
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary me-1" id="saveEdit">Save</button>
+                    <button class="btn btn-outline-secondary" id="cancelEdit">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+let currentEditId = null;
+
+// Add new descriptor
+$(document).on('click', '#addDescriptor', function(e) {
+    e.preventDefault();
+    
+    const keyInput = $('#newKey');
+    const valueInput = $('#newValue');
+    const key = keyInput.val().trim();
+    const value = valueInput.val().trim();
+    
+    if (!key || !value) {
+        alert('Both key and value are required');
+        return;
+    }
+    
+    // Show loading state
+    const addButton = $(this);
+    const originalContent = addButton.html();
+    addButton.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...');
+    
+    // Send AJAX request to add descriptor
+    $.ajax({
+        url: '{{ url_for("add_descriptor", media_id=media.id) }}',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ key: key, value: value }),
+        success: function(response) {
+            if (response && response.success) {
+                // Add new row to the table
+                const newRow = `
+                    <tr id="descriptor-${response.descriptor.id}">
+                        <td class="descriptor-key">${key}</td>
+                        <td class="descriptor-value">${value}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary edit-descriptor" data-id="${response.descriptor.id}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger delete-descriptor" data-id="${response.descriptor.id}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                $('#newDescriptorRow').before(newRow);
+                
+                // Clear input fields and focus on key for next entry
+                keyInput.val('').focus();
+                valueInput.val('');
+            } else {
+                const errorMsg = response && response.message ? response.message : 'Unknown error occurred';
+                alert('Error adding descriptor: ' + errorMsg);
+            }
+        },
+        error: function(xhr) {
+            let errorMsg = 'Error adding descriptor';
+            try {
+                const response = xhr.responseJSON;
+                if (response && response.message) {
+                    errorMsg = response.message;
+                }
+            } catch (e) {}
+            alert(errorMsg);
+        },
+        complete: function() {
+            // Reset button state
+            addButton.prop('disabled', false).html(originalContent);
+        }
+    });
+});
+
+// Handle Enter key in input fields
+$('#newKey, #newValue').on('keypress', function(e) {
+    if (e.which === 13) { // Enter key
+        e.preventDefault();
+        $('#addDescriptor').click();
+    }
+});
+
+// Edit descriptor
+$(document).on('click', '.edit-descriptor', function() {
+    const id = $(this).data('id');
+    const row = $(`#descriptor-${id}`);
+    const key = row.find('.descriptor-key').text();
+    const value = row.find('.descriptor-value').text();
+    
+    // Show edit form
+    $('#editKey').val(key);
+    $('#editValue').val(value);
+    currentEditId = id;
+    $('#editFormContainer').removeClass('d-none').insertAfter($(this).closest('tr'));
+});
+
+// Save edited descriptor
+$('#saveEdit').click(function() {
+    if (!currentEditId) return;
+    
+    const key = $('#editKey').val().trim();
+    const value = $('#editValue').val().trim();
+    
+    if (!key || !value) {
+        alert('Both key and value are required');
+        return;
+    }
+    
+    // Send AJAX request to update descriptor
+    $.ajax({
+        url: `{{ url_for('update_descriptor', media_id=media.id) }}`,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ 
+            descriptor_id: currentEditId,
+            key: key, 
+            value: value 
+        }),
+        success: function(response) {
+            if (response.success) {
+                // Update the row
+                const row = $(`#descriptor-${currentEditId}`);
+                row.find('.descriptor-key').text(key);
+                row.find('.descriptor-value').text(value);
+                cancelEdit();
+            } else {
+                alert('Error updating descriptor: ' + response.message);
+            }
+        },
+        error: function() {
+            alert('Error updating descriptor');
+        }
+    });
+});
+
+// Cancel edit
+$('#cancelEdit').click(cancelEdit);
+
+function cancelEdit() {
+    currentEditId = null;
+    $('#editFormContainer').addClass('d-none');
+}
+
+// Delete descriptor
+$(document).on('click', '.delete-descriptor', function() {
+    if (!confirm('Are you sure you want to delete this descriptor?')) {
+        return;
+    }
+    
+    const id = $(this).data('id');
+    
+    // Send AJAX request to delete descriptor
+    $.ajax({
+        url: `{{ url_for('delete_descriptor', media_id=media.id) }}`,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ descriptor_id: id }),
+        success: function(response) {
+            if (response.success) {
+                $(`#descriptor-${id}`).remove();
+            } else {
+                alert('Error deleting descriptor: ' + response.message);
+            }
+        },
+        error: function() {
+            alert('Error deleting descriptor');
+        }
+    });
+});
+</script>
+{% endblock %}

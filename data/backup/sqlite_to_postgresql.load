@@ -1,0 +1,16 @@
+LOAD DATABASE
+     FROM sqlite:///Users/davidnene/Projects/4-aphrc/policylens/data/backup/policylens.db
+     INTO postgresql://admin:admin@localhost:5432/policylensai
+
+WITH
+     include drop,
+     create tables,
+     drop indexes,
+     create indexes,
+     reset sequences,
+     foreign keys
+
+CAST
+     type datetime to timestamptz using zero-dates-to-null,
+     type date to date,
+     type boolean to boolean;

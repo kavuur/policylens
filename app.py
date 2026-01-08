@@ -83,9 +83,9 @@ def _adapt_cookie_security():
 # -----------------------------------------------------------------------------
 # Database
 # -----------------------------------------------------------------------------
-db_url = os.getenv('DATABASE_URI') or os.getenv('DATABASE_URL')
+db_url = os.getenv('DATABASE_URL')
 if not db_url:
-    raise RuntimeError('DATABASE_URL or DATABASE_URI must be set to point to your Postgres database')
+    raise RuntimeError('DATABASE_URL must be set to point to your Postgres database')
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)

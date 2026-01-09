@@ -760,15 +760,46 @@ def upload_media():
             flash('No selected file', 'danger'); return redirect(request.url)
         if not media_allowed_file(file.filename):
             flash('File type not allowed', 'danger'); return redirect(request.url)
+
+        # First check if file already exists in upload_dir by filename (quick check)
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         filename = secure_filename(file.filename)
-        base, ext = os.path.splitext(filename); counter = 1
-        while os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], filename)):
-            filename = f"{base}_{counter}{ext}"; counter += 1
+        if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], filename)):
+            flash('A file with this name already exists in the system.', 'warning')
+            return redirect(request.url)
+
+        # Read bytes to compute size and checksum for duplicate detection
+        file_bytes = file.read()
+        file_size = len(file_bytes)
+        file.stream.seek(0)
+        file_type = mimetypes.guess_type(file.filename)[0] or 'application/octet-stream'
+        checksum = hashlib.sha256(file_bytes).hexdigest()
+
+        # Look for existing media with same size and type; compare checksums on disk
+        candidates = Media.query.filter_by(file_size=file_size, file_type=file_type).all()
+        for cand in candidates:
+            try:
+                existing_path = os.path.join(app.config['UPLOAD_FOLDER'], cand.filename)
+                if os.path.exists(existing_path):
+                    with open(existing_path, 'rb') as fh:
+                        existing_hash = hashlib.sha256(fh.read()).hexdigest()
+                    if existing_hash == checksum:
+                        # Optionally compare descriptors if provided to be extra-sure
+                        provided_desc = {request.form.get(k): request.form.get(f"descriptor_value_{k.split('_')[-1]}")
+                                         for k in request.form.keys() if k.startswith('descriptor_key_')}
+                        if provided_desc:
+                            existing_desc = {d.key: d.value for d in cand.descriptors}
+                            if not all(existing_desc.get(k) == v for k, v in provided_desc.items()):
+                                continue
+                        flash('A file identical to this one already exists in the system.', 'warning')
+                        return redirect(url_for('view_media', media_id=cand.id))
+            except Exception:
+                continue
+
+        # Save file to upload folder
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
-        file_size = os.path.getsize(filepath)
-        file_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+
         media = Media(
             filename=filename,
             description=form.description.data,
@@ -1100,9 +1131,18 @@ def import_codebook():
         # ✅ save under the same writable root as other uploads
         upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'codebooks')
         os.makedirs(upload_dir, exist_ok=True)
+
+        # First check if file already exists by filename (quick check)
         base, ext_dot = os.path.splitext(secure_filename(file.filename))
         filename = f"{base}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext_dot}"
         filepath = os.path.join(upload_dir, filename)
+        if os.path.exists(filepath):
+            if codebook:
+                flash(f'File already exists: {filename}', 'warning')
+                return redirect(url_for('edit_codebook_codes', codebook_id=codebook.id))
+            else:
+                return jsonify({'success': False, 'message': f'File already exists: {filename}'}), 409
+
         file.save(filepath)
 
         items = []
@@ -1672,7 +1712,14 @@ def analyze_policy():
 
         # Save temp file (reuse upload logic)
         filename = secure_filename(file.filename)
+        
+        # First check if file already exists by filename (quick check)
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if os.path.exists(filepath):
+            flash(f'File already exists: {filename}. Using existing file for analysis.', 'warning')
+            return redirect(request.referrer or url_for('dashboard'))
+
         file.save(filepath)
 
         # Extract text (reuse DocumentProcessor without modifying it)

@@ -10,20 +10,54 @@ def init_db():
         # # Create all database tables
         # db.create_all()
         
-        # Create admin user if it doesn't exist
-        if not User.query.filter_by(username='admin_user').first():
-            admin = User(
-                username='admin_user',
-                email='admin@policylens.ai',
-                is_active=True,
-                is_admin=True
-            )
-            admin.set_password('admin123')  # In production, use a strong password
-            db.session.add(admin)
+        # Create 2 admin users, view only admin user and normal user
+        if not User.query.filter_by(username='admin1').first():
+            admin_user = User(
+                username='admin1',
+                name='Administrator',
+                email='admin1@example.com',
+                is_active=True, 
+                is_admin=True)
+            admin_user.set_password('admin123')  # Replace with a secure password
+            db.session.add(admin_user)
             db.session.commit()
-            print("Database initialized with admin user")
+            print("Admin user created with username 'admin1' and password 'admin123'")
         else:
-            print("Database already initialized")
+            print("Admin user already exists.")
+
+        # view only admin user
+        if not User.query.filter_by(username='admin2').first():
+            admin_user = User(
+                username='admin2',
+                name='View Only Administrator',
+                email='admin2@example.com',
+                is_active=True, 
+                is_admin=True,
+                is_view_only_admin=True)
+            admin_user.set_password('admin123')  # Replace with a secure password
+            db.session.add(admin_user)
+            db.session.commit()
+            print("Admin user created with username 'admin2' and password 'admin123'")
+        else:
+            print("Admin user already exists.")
+
+        #normal user
+        if not User.query.filter_by(username='user').first():
+            normal_user = User(
+                username='user',
+                name='Normal User',
+                email='user@example.com',
+                is_active=True, 
+                is_admin=False)
+            normal_user.set_password('user123')  # Replace with a secure password
+            db.session.add(normal_user)
+            db.session.commit()
+            print("Normal user created with username 'user' and password 'user123'")
+        else:
+            print("Normal user already exists.")
+        
+
+        
 
 if __name__ == '__main__':
     init_db()

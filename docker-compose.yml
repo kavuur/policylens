@@ -17,7 +17,7 @@ services:
 
 
     volumes:
-      - app_data:/data
+      - ./instance:/app/instance
     working_dir: /app
 
     # Run the app with a UID/GID that can write to /data

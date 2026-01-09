@@ -15,7 +15,8 @@ def init_db():
             admin = User(
                 username='admin_user',
                 email='admin@policylens.ai',
-                is_active=True
+                is_active=True,
+                is_admin=True
             )
             admin.set_password('admin123')  # In production, use a strong password
             db.session.add(admin)

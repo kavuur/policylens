@@ -1,6 +1,8 @@
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
+from itsdangerous import URLSafeTimedSerializer
+from flask import current_app
 
 db = SQLAlchemy()
 
@@ -45,6 +47,23 @@ class User(UserMixin, db.Model):
         """Check hashed password."""
         from werkzeug.security import check_password_hash
         return check_password_hash(self.password_hash, password) if self.password_hash else False
+
+    def get_reset_token(self):
+        """Generate a password reset token."""
+        serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        return serializer.dumps({'user_id': self.id})
+
+    @staticmethod
+    def verify_reset_token(token, max_age=None):
+        """Verify password reset token and return user."""
+        if max_age is None:
+            max_age = current_app.config.get('PASSWORD_RESET_TOKEN_EXPIRY', 86400)
+        serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        try:
+            data = serializer.loads(token, max_age=max_age)
+            return User.query.get(data['user_id'])
+        except Exception:
+            return None
 
 class PolicyDocument(db.Model):
     __tablename__ = 'policy_document'

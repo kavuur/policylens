@@ -20,6 +20,18 @@ class Config:
 
     SEARCH_RESULTS_LIMIT = 5
 
+    # Mail configuration
+    MAIL_SERVER = os.getenv('MAIL_SERVER', 'localhost')
+    MAIL_PORT = int(os.getenv('MAIL_PORT', 25))
+    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'False') == 'True'
+    MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'False') == 'True'
+    MAIL_USERNAME = os.getenv('MAIL_USERNAME')
+    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@policylens.local')
+    
+    # Password reset token expiry (24 hours)
+    PASSWORD_RESET_TOKEN_EXPIRY = 86400  # seconds
+
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 class DevelopmentConfig(Config):

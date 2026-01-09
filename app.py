@@ -23,6 +23,7 @@ from flask_login import (
     LoginManager, current_user, login_user, login_required, logout_user
 )
 from flask_migrate import Migrate
+from flask_mail import Mail, Message
 from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -54,6 +55,13 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-unsafe-secret')
 app.config['WTF_CSRF_ENABLED'] = True
 app.config['WTF_CSRF_SECRET_KEY'] = 'another-secret-key'  # Change this to a different secure key
+
+# Load config from config.py
+from config import DevelopmentConfig, ProductionConfig
+app.config.from_object(DevelopmentConfig if app.debug else ProductionConfig)
+
+# Initialize Flask-Mail
+mail = Mail(app)
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
@@ -438,6 +446,113 @@ def logout():
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    """Request a password reset link via email."""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+        if not email:
+            flash('Please enter an email address.', 'danger')
+            return redirect(url_for('forgot_password'))
+        
+        user = User.query.filter_by(email=email).first()
+        if user:
+            try:
+                token = user.get_reset_token()
+                reset_url = url_for('reset_password', token=token, _external=True)
+                msg = Message(
+                    subject='Password Reset Request',
+                    recipients=[user.email],
+                    body=f'''To reset your password, visit the following link:
+{reset_url}
+
+This link will expire in 24 hours. If you did not request a password reset, please ignore this email.
+''',
+                    html=render_template('auth/reset_email.html', user=user, reset_url=reset_url)
+                )
+                mail.send(msg)
+                flash('A password reset link has been sent to your email address.', 'info')
+                return redirect(url_for('login'))
+            except Exception as e:
+                app.logger.error(f'Error sending password reset email: {str(e)}')
+                flash('An error occurred. Please try again later.', 'danger')
+        else:
+            # Don't reveal if email exists (security)
+            flash('If an account with that email exists, a reset link has been sent.', 'info')
+            return redirect(url_for('login'))
+    
+    return render_template('auth/forgot_password.html')
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    """Reset password using a valid token."""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    user = User.verify_reset_token(token)
+    if not user:
+        flash('The password reset link is invalid or has expired.', 'danger')
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        password = request.form.get('password', '').strip()
+        confirm_password = request.form.get('confirm_password', '').strip()
+        
+        if not password or not confirm_password:
+            flash('Please fill in all fields.', 'danger')
+            return redirect(url_for('reset_password', token=token))
+        
+        if password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return redirect(url_for('reset_password', token=token))
+        
+        if len(password) < 6:
+            flash('Password must be at least 6 characters long.', 'danger')
+            return redirect(url_for('reset_password', token=token))
+        
+        user.set_password(password)
+        db.session.commit()
+        flash('Your password has been reset. Please log in with your new password.', 'success')
+        return redirect(url_for('login'))
+    
+    return render_template('auth/reset_password.html', token=token)
+
+# Admin ability to reset user passwords
+@app.route('/admin/users/<int:user_id>/reset-password', methods=['POST'])
+@login_required
+def admin_reset_user_password(user_id):
+    """Admin can reset a user's password and send them a reset link."""
+    if not current_user.is_admin:
+        flash('You do not have permission to reset passwords.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    try:
+        token = user.get_reset_token()
+        reset_url = url_for('reset_password', token=token, _external=True)
+        msg = Message(
+            subject='Password Reset Request from Administrator',
+            recipients=[user.email],
+            body=f'''An administrator has requested that you reset your password.
+To reset your password, visit the following link:
+{reset_url}
+
+This link will expire in 24 hours. If you did not request this, please contact an administrator.
+''',
+            html=render_template('auth/reset_email.html', user=user, reset_url=reset_url, admin_reset=True)
+        )
+        mail.send(msg)
+        flash(f'Password reset link sent to {user.email}.', 'success')
+    except Exception as e:
+        app.logger.error(f'Error sending password reset email: {str(e)}')
+        flash('An error occurred sending the reset email.', 'danger')
+    
+    return redirect(request.referrer or url_for('dashboard'))
 
 # -----------------------------------------------------------------------------
 # Descriptors (media)
@@ -1062,6 +1177,54 @@ def save_codebook_item(codebook_id):
         db.session.rollback()
         app.logger.error(f'Error saving {level}: {str(e)}')
         return jsonify({'success': False, 'message': f'Failed to save {level}: {str(e)}'}), 500
+
+
+@app.route('/api/codebook/<int:codebook_id>/delete_item', methods=['POST'])
+@login_required
+def delete_codebook_item(codebook_id):
+    """Delete a code, subcode, or subsubcode."""
+    try:
+        codebook = db.session.get(Codebook, codebook_id)
+        if not codebook or codebook.user_id != current_user.id:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+        data = request.get_json() or {}
+        item_type = data.get('type', '').lower()
+        try:
+            item_id = int(data.get('id', 0))
+        except (ValueError, TypeError):
+            item_id = None
+
+        if not item_type or not item_id:
+            return jsonify({'success': False, 'message': 'Missing type or id'}), 400
+
+        if item_type == 'code':
+            item = Code.query.get_or_404(item_id)
+            if item.codebook_id != codebook_id:
+                return jsonify({'success': False, 'message': 'Item does not belong to this codebook'}), 403
+            db.session.delete(item)
+        elif item_type == 'subcode':
+            item = SubCode.query.get_or_404(item_id)
+            code = Code.query.get(item.code_id)
+            if not code or code.codebook_id != codebook_id:
+                return jsonify({'success': False, 'message': 'Item does not belong to this codebook'}), 403
+            db.session.delete(item)
+        elif item_type == 'subsubcode':
+            item = SubSubCode.query.get_or_404(item_id)
+            subcode = SubCode.query.get(item.subcode_id)
+            code = Code.query.get(subcode.code_id) if subcode else None
+            if not code or code.codebook_id != codebook_id:
+                return jsonify({'success': False, 'message': 'Item does not belong to this codebook'}), 403
+            db.session.delete(item)
+        else:
+            return jsonify({'success': False, 'message': f'Unknown type: {item_type}'}), 400
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'{item_type.capitalize()} deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error deleting {item_type}: {str(e)}')
+        return jsonify({'success': False, 'message': f'Failed to delete item: {str(e)}'}), 500
 
 
 # -----------------------------------------------------------------------------

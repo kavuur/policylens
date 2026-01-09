@@ -1304,7 +1304,7 @@ def update_codebook_item(codebook_id):
     if not item_type or not item_id or not name:
         return jsonify({'success': False, 'message': 'Missing required fields'}), 400
     codebook = Codebook.query.get_or_404(codebook_id)
-    if codebook.user_id != current_user.id:
+    if codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     try:
         if item_type == 'code':
@@ -1346,7 +1346,7 @@ def save_codebook_item(codebook_id):
         return jsonify({'success': False, 'message': 'Parent ID is required'}), 400
     try:
         codebook = Codebook.query.get_or_404(codebook_id)
-        if codebook.user_id != current_user.id:
+        if codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True:
             return jsonify({'success': False, 'message': 'Unauthorized'}), 403
         if level == 'code':
             if Code.query.filter_by(code=name, codebook_id=codebook_id).first():
@@ -1384,7 +1384,7 @@ def delete_codebook_item(codebook_id):
     """Delete a code, subcode, or subsubcode."""
     try:
         codebook = db.session.get(Codebook, codebook_id)
-        if not codebook or codebook.user_id != current_user.id:
+        if not codebook or (codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True):
             return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
         data = request.get_json() or {}
@@ -1452,7 +1452,7 @@ def import_codebook():
             codebook_id = request.args.get('codebook_id', type=int)
 
         codebook = db.session.get(Codebook, codebook_id) if codebook_id else None
-        if codebook and codebook.user_id != current_user.id:
+        if codebook and (codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True):
             return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
         # ---------- GET: extract from an existing on-disk file (PDF/DOC/DOCX) ----------
@@ -1595,7 +1595,7 @@ def create_codebook():
 def edit_codebook(codebook_id):
     from models.models import Project
     codebook = Codebook.query.get_or_404(codebook_id)
-    if codebook.user_id != current_user.id: abort(403)
+    if codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True: abort(403)
     form = CodebookForm(obj=codebook)
     projects = Project.query.filter_by(owner_id=current_user.id).all()
     form.project_id.choices = [('', 'Select a project (optional)')] + [(str(p.id), p.name) for p in projects]
@@ -1618,7 +1618,7 @@ def edit_codebook(codebook_id):
 @login_required
 def delete_codebook(codebook_id):
     codebook = Codebook.query.get_or_404(codebook_id)
-    if codebook.user_id != current_user.id: abort(403)
+    if codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True: abort(403)
     try:
         db.session.delete(codebook); db.session.commit()
         flash('Codebook deleted successfully!', 'success')
@@ -1662,7 +1662,7 @@ def export_codebook(codebook_id, format):
 def edit_code(code_id):
     code = Code.query.get_or_404(code_id)
     codebook = code.codebook
-    if codebook.user_id != current_user.id: abort(403)
+    if codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True: abort(403)
     if request.method == 'POST':
         try:
             code.code = request.form.get('code', '').strip()
@@ -1679,7 +1679,7 @@ def edit_code(code_id):
 @login_required
 def add_subcode(code_id):
     code = Code.query.get_or_404(code_id)
-    if code.codebook.user_id != current_user.id:
+    if code.codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     data = request.get_json() or {}
     if 'name' not in data:
@@ -1696,7 +1696,7 @@ def add_subcode(code_id):
 @login_required
 def delete_code(code_id):
     code = Code.query.get_or_404(code_id)
-    if code.codebook.user_id != current_user.id: abort(403)
+    if code.codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True: abort(403)
     try:
         db.session.delete(code); db.session.commit()
         return '', 204
@@ -1715,7 +1715,7 @@ def edit_codebook_codes(codebook_id):
     codebook = Codebook.query.options(
         joinedload(Codebook.codes).joinedload(Code.subcodes).joinedload(SubCode.subsubcodes)
     ).get_or_404(codebook_id)
-    if codebook.user_id != current_user.id: abort(403)
+    if codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True: abort(403)
 
     if request.method == 'POST' and request.is_json:
         try:

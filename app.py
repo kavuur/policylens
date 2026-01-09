@@ -13,11 +13,21 @@ import uuid
 
 import requests
 import pandas as pd
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib import colors
+from docx import Document
+from docx.shared import Inches, Pt, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from dotenv import load_dotenv
-
 from flask import (
     Flask, render_template, request, redirect, url_for, flash,
-    jsonify, send_from_directory, abort, g, has_request_context
+    jsonify, send_from_directory, send_file, abort, g, has_request_context
 )
 from flask_login import (
     LoginManager, current_user, login_user, login_required, logout_user
@@ -398,6 +408,195 @@ request_cache = RequestCache()
 def generate_request_id(request_data) -> str:
     data_str = json.dumps(request_data, sort_keys=True)
     return hashlib.md5(data_str.encode('utf-8')).hexdigest()
+
+# Codebook export helpers
+# ---
+def flatten_codes(codebook):
+    """Flatten the code hierarchy into a list of records for exporting."""
+    records = []
+    for code in codebook.codes:
+        records.append({
+            'Level': 'Code',
+            'Code': code.code,
+            'Description': code.description or '',
+            'Parent': '',
+        })
+        for subcode in code.subcodes:
+            records.append({
+                'Level': 'SubCode',
+                'Code': f"  → {subcode.subcode}",
+                'Description': subcode.description or '',
+                'Parent': code.code,
+            })
+            for subsubcode in subcode.subsubcodes:
+                records.append({
+                    'Level': 'SubSubCode',
+                    'Code': f"    → {subsubcode.subsubcode}",
+                    'Description': subsubcode.description or '',
+                    'Parent': subcode.subcode,
+                })
+    return records
+
+def export_codebook_to_pdf(codebook):
+    """Generate a PDF export of the codebook."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    elements = []
+    
+    # Styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor('#003366'), spaceAfter=6)
+    heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'], fontSize=12, textColor=colors.HexColor('#003366'), spaceAfter=10)
+    cell_style = ParagraphStyle('CellText', parent=styles['Normal'], fontSize=8, wordWrap='CJK')
+    
+    # Title and metadata
+    elements.append(Paragraph(codebook.name, title_style))
+    meta_text = f"<b>Created:</b> {codebook.created_at.strftime('%Y-%m-%d')} | <b>Codes:</b> {len(codebook.codes)}"
+    elements.append(Paragraph(meta_text, styles['Normal']))
+    if codebook.description:
+        elements.append(Paragraph(f"<b>Description:</b> {codebook.description}", styles['Normal']))
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Codes table
+    elements.append(Paragraph("Codes and Sub-Codes", heading_style))
+    records = flatten_codes(codebook)
+    
+    # Build table data with wrapped text
+    table_data = [['Level', 'Code', 'Description']]
+    for rec in records:
+        # Wrap descriptions in Paragraph for proper text wrapping
+        desc_para = Paragraph(rec['Description'][:300], cell_style)  # Limit but let Paragraph handle wrapping
+        table_data.append([rec['Level'], rec['Code'], desc_para])
+    
+    table = Table(table_data, colWidths=[0.9*inch, 1.8*inch, 2.8*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#003366')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f0f0')]),
+    ]))
+    elements.append(table)
+    
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+def export_codebook_to_docx(codebook):
+    """Generate a DOCX export of the codebook."""
+    doc = Document()
+    
+    # Title and metadata
+    title = doc.add_heading(codebook.name, level=1)
+    title.runs[0].font.color.rgb = RGBColor(0, 51, 102)
+    
+    meta = doc.add_paragraph(f"Created: {codebook.created_at.strftime('%Y-%m-%d')} | Codes: {len(codebook.codes)}")
+    meta.runs[0].font.size = Pt(10)
+    
+    if codebook.description:
+        desc_para = doc.add_paragraph(codebook.description)
+        desc_para.runs[0].italic = True
+    
+    doc.add_paragraph()  # Spacer
+    
+    # Codes section
+    doc.add_heading("Codes and Sub-Codes", level=2)
+    
+    records = flatten_codes(codebook)
+    
+    # Add table
+    table = doc.add_table(rows=1, cols=3)
+    table.style = 'Light Grid Accent 1'
+    header_cells = table.rows[0].cells
+    header_cells[0].text = 'Level'
+    header_cells[1].text = 'Code'
+    header_cells[2].text = 'Description'
+    
+    # Style header
+    for cell in header_cells:
+        cell.paragraphs[0].runs[0].font.bold = True
+        cell.paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 255, 255)
+        from docx.oxml import parse_xml
+        shading_elm = parse_xml(r'<w:shd {} w:fill="003366"/>'.format('xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'))
+        cell._element.get_or_add_tcPr().append(shading_elm)
+    
+    # Add rows
+    for rec in records:
+        row_cells = table.add_row().cells
+        row_cells[0].text = rec['Level']
+        row_cells[1].text = rec['Code']
+        row_cells[2].text = rec['Description'][:200]
+    
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+def export_codebook_to_excel(codebook):
+    """Generate an Excel export of the codebook."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Codebook"
+    
+    # Header styling
+    header_fill = PatternFill(start_color="003366", end_color="003366", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True, size=12)
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    
+    # Metadata section
+    ws['A1'] = "Codebook Name"
+    ws['B1'] = codebook.name
+    ws['A2'] = "Created Date"
+    ws['B2'] = codebook.created_at.strftime('%Y-%m-%d')
+    ws['A3'] = "Total Codes"
+    ws['B3'] = len(codebook.codes)
+    if codebook.description:
+        ws['A4'] = "Description"
+        ws['B4'] = codebook.description
+    
+    # Bold metadata labels
+    for cell in [ws['A1'], ws['A2'], ws['A3'], ws['A4']]:
+        cell.font = Font(bold=True)
+    
+    # Codes table
+    start_row = 6
+    headers = ['Level', 'Code', 'Description', 'Parent Code']
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=start_row, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+    
+    records = flatten_codes(codebook)
+    for row_num, rec in enumerate(records, start_row + 1):
+        ws.cell(row=row_num, column=1).value = rec['Level']
+        ws.cell(row=row_num, column=2).value = rec['Code']
+        ws.cell(row=row_num, column=3).value = rec['Description']
+        ws.cell(row=row_num, column=4).value = rec['Parent']
+        
+        for col in range(1, 5):
+            ws.cell(row=row_num, column=col).border = border
+    
+    # Adjust column widths
+    ws.column_dimensions['A'].width = 12
+    ws.column_dimensions['B'].width = 25
+    ws.column_dimensions['C'].width = 40
+    ws.column_dimensions['D'].width = 20
+    
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
 
 # -----------------------------------------------------------------------------
 # Auth
@@ -1427,6 +1626,36 @@ def delete_codebook(codebook_id):
         db.session.rollback()
         flash(f'Error deleting codebook: {str(e)}', 'danger')
     return redirect(url_for('list_codebooks'))
+
+@app.route('/codebooks/<int:codebook_id>/export/<format>', methods=['GET'])
+@login_required
+def export_codebook(codebook_id, format):
+    """Export codebook in PDF, DOCX, or XLSX format."""
+    codebook = Codebook.query.options(
+        joinedload(Codebook.codes).joinedload(Code.subcodes).joinedload(SubCode.subsubcodes)
+    ).get_or_404(codebook_id)
+    
+    if codebook.user_id != current_user.id and not current_user.is_admin:
+        abort(403)
+    
+    format = format.lower()
+    if format == 'pdf':
+        buffer = export_codebook_to_pdf(codebook)
+        filename = f"{codebook.name.replace(' ', '_')}.pdf"
+        return send_file(buffer, mimetype='application/pdf', as_attachment=True, download_name=filename)
+    elif format == 'docx':
+        buffer = export_codebook_to_docx(codebook)
+        filename = f"{codebook.name.replace(' ', '_')}.docx"
+        return send_file(buffer, mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
+                        as_attachment=True, download_name=filename)
+    elif format == 'xlsx':
+        buffer = export_codebook_to_excel(codebook)
+        filename = f"{codebook.name.replace(' ', '_')}.xlsx"
+        return send_file(buffer, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        as_attachment=True, download_name=filename)
+    else:
+        flash('Invalid export format.', 'danger')
+        return redirect(url_for('view_codebook', codebook_id=codebook_id))
 
 @app.route('/code/<int:code_id>/edit', methods=['GET', 'POST'])
 @login_required

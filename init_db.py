@@ -42,17 +42,17 @@ def init_db():
             print("Admin user already exists.")
 
         #normal user
-        if not User.query.filter_by(username='user').first():
+        if not User.query.filter_by(username='user1').first():
             normal_user = User(
-                username='user',
-                name='Normal User',
-                email='user@example.com',
+                username='user1',
+                name='Normal User One',
+                email='user1@example.com',
                 is_active=True, 
                 is_admin=False)
             normal_user.set_password('user123')  # Replace with a secure password
             db.session.add(normal_user)
             db.session.commit()
-            print("Normal user created with username 'user' and password 'user123'")
+            print("Normal user created with username 'user1' and password 'user123'")
         else:
             print("Normal user already exists.")
         

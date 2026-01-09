@@ -1155,7 +1155,10 @@ def import_codebook():
 def list_codebooks():
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '').strip()
-    query = Codebook.query.options(joinedload(Codebook.project)).filter_by(user_id=current_user.id)
+    query = Codebook.query.options(joinedload(Codebook.project))
+    # Admins see all codebooks; regular users see only their own
+    if not current_user.is_admin:
+        query = query.filter_by(user_id=current_user.id)
     if search:
         s = f"%{search}%"
         query = query.filter((Codebook.name.ilike(s)) | (Codebook.description.ilike(s)))

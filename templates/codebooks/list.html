@@ -99,10 +99,11 @@
                                     class="btn btn-outline-secondary" title="Edit Details">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <form action="{{ url_for('delete_codebook', codebook_id=codebook.id) }}" method="POST"
-                                    class="d-inline"
-                                    onsubmit="return confirm('Are you sure you want to delete this codebook? This action cannot be undone.');">
+                                <form class="d-inline" onsubmit="event.preventDefault(); showDeleteCodebookModal(this);">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                    <input type="hidden" name="codebook_id" value="{{ codebook.id }}" />
+                                    <input type="hidden" name="codebook_name" value="{{ codebook.name }}" />
+                                    <input type="hidden" name="action" value="{{ url_for('delete_codebook', codebook_id=codebook.id) }}" />
                                     <button type="submit" class="btn btn-outline-danger" title="Delete">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -343,6 +344,76 @@
         // Show the toast
         toast.show();
     }
+
+    function showDeleteCodebookModal(form) {
+        const codebookName = form.querySelector('input[name="codebook_name"]').value;
+        const codebookId = form.querySelector('input[name="codebook_id"]').value;
+        const action = form.querySelector('input[name="action"]').value;
+
+        const deleteModal = document.getElementById('deleteCodebookModal');
+        const deleteTitle = document.getElementById('deleteCodebookName');
+        const confirmBtn = document.getElementById('confirmDeleteCodebookBtn');
+
+        deleteTitle.textContent = codebookName;
+        deleteModal.dataset.codebookId = codebookId;
+        deleteModal.dataset.action = action;
+        deleteModal.dataset.csrfToken = form.querySelector('input[name="csrf_token"]').value;
+
+        const modal = new bootstrap.Modal(deleteModal);
+        modal.show();
+    }
+
+    document.getElementById('confirmDeleteCodebookBtn')?.addEventListener('click', async function() {
+        const deleteModal = document.getElementById('deleteCodebookModal');
+        const action = deleteModal.dataset.action;
+        const csrfToken = deleteModal.dataset.csrfToken;
+
+        try {
+            const response = await fetch(action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(text || 'Server error');
+            }
+
+            // Success - close modal and reload
+            const modal = bootstrap.Modal.getInstance(deleteModal);
+            modal?.hide();
+            showToast('Success', 'Codebook deleted successfully.');
+            setTimeout(() => location.reload(), 800);
+        } catch (error) {
+            showToast('Error', error.message || 'Failed to delete codebook.', 'danger');
+        }
+    });
 </script>
+
+<!-- Delete Codebook Confirmation Modal -->
+<div class="modal fade" id="deleteCodebookModal" tabindex="-1" aria-labelledby="deleteCodebookLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteCodebookLabel"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">You are about to delete this codebook:</p>
+                <div class="alert alert-warning" role="alert">
+                    <strong id="deleteCodebookName"></strong>
+                </div>
+                <p class="text-muted small"><i class="fas fa-exclamation-circle me-1"></i>This action cannot be undone. All codes, sub-codes, and associated data will be permanently deleted.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteCodebookBtn"><i class="fas fa-trash me-2"></i>Delete Permanently</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 {% endblock %}

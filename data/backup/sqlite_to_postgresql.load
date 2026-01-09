@@ -5,7 +5,6 @@ LOAD DATABASE
 WITH
      include drop,
      create tables,
-     drop indexes,
      create indexes,
      reset sequences,
      foreign keys
@@ -14,3 +13,4 @@ CAST
      type datetime to timestamptz using zero-dates-to-null,
      type date to date,
      type boolean to boolean;
+

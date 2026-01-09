@@ -88,4 +88,4 @@ WTForms==3.1.1
 zstandard==0.25.0
 reportlab==4.0.9
 python-docx==0.8.11
-openpyxl==3.11.2
+openpyxl

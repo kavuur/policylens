@@ -29,6 +29,10 @@ class User(UserMixin, db.Model):
     
     # Relationships
     codebooks = db.relationship('Codebook', back_populates='user', cascade='all, delete-orphan')
+    policies = db.relationship('PolicyDocument', back_populates='user', cascade='all, delete-orphan')
+    research_notes = db.relationship('ResearchNote', back_populates='user', cascade='all, delete-orphan')
+    media_items = db.relationship('Media', back_populates='user', cascade='all, delete-orphan')
+    excerpts = db.relationship('Excerpt', back_populates='user', cascade='all, delete-orphan')
     # owned_projects is defined via backref in Project.owner
     # collaborative_projects is defined via backref in Project.collaborators
     
@@ -43,38 +47,42 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password) if self.password_hash else False
 
 class PolicyDocument(db.Model):
+    __tablename__ = 'policy_document'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
     category = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='policies')
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    
+    # Relationships
+    user = db.relationship('User', back_populates='policies')
 
 class Codebook(db.Model):
     __tablename__ = 'codebook'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
-    project_id = db.Column(db.Integer, db.ForeignKey('project.id', ondelete='CASCADE'), nullable=True)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id', ondelete='CASCADE'), nullable=True, index=True)
     
     # Relationships
     user = db.relationship('User', back_populates='codebooks')
     project = db.relationship('Project', back_populates='codebooks')
     codes = db.relationship('Code', back_populates='codebook', cascade='all, delete-orphan')
+    excerpts = db.relationship('Excerpt', back_populates='codebook', cascade='all, delete-orphan')
 
 class Code(db.Model):
     __tablename__ = 'code'
     id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(100), nullable=False)
+    code = db.Column(db.String(500), nullable=False)
     description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    codebook_id = db.Column(db.Integer, db.ForeignKey('codebook.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    codebook_id = db.Column(db.Integer, db.ForeignKey('codebook.id', ondelete='CASCADE'), nullable=False, index=True)
     
     # Relationships
     codebook = db.relationship('Codebook', back_populates='codes')
@@ -83,11 +91,11 @@ class Code(db.Model):
 class SubCode(db.Model):
     __tablename__ = 'subcode'
     id = db.Column(db.Integer, primary_key=True)
-    subcode = db.Column(db.String(100), nullable=False)
+    subcode = db.Column(db.String(500), nullable=False)
     description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    code_id = db.Column(db.Integer, db.ForeignKey('code.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    code_id = db.Column(db.Integer, db.ForeignKey('code.id', ondelete='CASCADE'), nullable=False, index=True)
     
     # Relationships
     code = db.relationship('Code', back_populates='subcodes')
@@ -96,23 +104,26 @@ class SubCode(db.Model):
 class SubSubCode(db.Model):
     __tablename__ = 'subsubcode'
     id = db.Column(db.Integer, primary_key=True)
-    subsubcode = db.Column(db.String(100), nullable=False)
+    subsubcode = db.Column(db.String(500), nullable=False)
     description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    subcode_id = db.Column(db.Integer, db.ForeignKey('subcode.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    subcode_id = db.Column(db.Integer, db.ForeignKey('subcode.id', ondelete='CASCADE'), nullable=False, index=True)
     
     # Relationships
     subcode = db.relationship('SubCode', back_populates='subsubcodes')
 
 class ResearchNote(db.Model):
+    __tablename__ = 'research_note'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='research_notes')
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    
+    # Relationships
+    user = db.relationship('User', back_populates='research_notes')
 
 
 
@@ -131,6 +142,7 @@ class Project(db.Model):
     owner = db.relationship('User', foreign_keys=[owner_id], backref=db.backref('owned_projects', lazy='dynamic'))
     codebooks = db.relationship('Codebook', back_populates='project', cascade='all, delete-orphan')
     media_items = db.relationship('Media', back_populates='project', cascade='all, delete-orphan')
+    excerpts = db.relationship('Excerpt', back_populates='project', cascade='all, delete-orphan')
     collaborators = db.relationship(
         'User',
         secondary=project_collaborators,
@@ -173,24 +185,27 @@ class Media(db.Model):
     ]
     
     id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(255), nullable=False)
+    filename = db.Column(db.String(500), nullable=False)
     description = db.Column(db.Text)
     category = db.Column(db.String(100))
     type = db.Column(db.String(50), nullable=False, default='other')
     visibility = db.Column(db.String(20), nullable=False, default='private')
-    file_type = db.Column(db.String(50))  # e.g., 'image', 'document', 'video'
+    file_type = db.Column(db.String(100))  # e.g., 'image', 'document', 'video'
     file_size = db.Column(db.BigInteger)  # Store file size in bytes
     uploaded_at = db.Column(db.DateTime, server_default=db.func.now())
     
     # Relationships
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='media_items')
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    user = db.relationship('User', back_populates='media_items')
     
-    project_id = db.Column(db.Integer, db.ForeignKey('project.id', ondelete='CASCADE'), nullable=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id', ondelete='CASCADE'), nullable=True, index=True)
     project = db.relationship('Project', back_populates='media_items')
     
     # One-to-many relationship with descriptors
-    descriptors = db.relationship('Descriptor', backref='media', cascade='all, delete-orphan')
+    descriptors = db.relationship('Descriptor', back_populates='media', cascade='all, delete-orphan')
+    
+    # One-to-many relationship with excerpts
+    excerpts = db.relationship('Excerpt', back_populates='media', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Media {self.filename}>'
@@ -200,21 +215,21 @@ class Excerpt(db.Model):
     __tablename__ = 'excerpts'
     
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('project.id', ondelete='CASCADE'), nullable=False)
-    media_id = db.Column(db.Integer, db.ForeignKey('media.id', ondelete='CASCADE'), nullable=False)
-    codebook_id = db.Column(db.Integer, db.ForeignKey('codebook.id', ondelete='CASCADE'), nullable=True)
-    code = db.Column(db.String(100), nullable=True)
-    subcode = db.Column(db.String(100), nullable=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id', ondelete='CASCADE'), nullable=False, index=True)
+    media_id = db.Column(db.Integer, db.ForeignKey('media.id', ondelete='CASCADE'), nullable=False, index=True)
+    codebook_id = db.Column(db.Integer, db.ForeignKey('codebook.id', ondelete='CASCADE'), nullable=True, index=True)
+    code = db.Column(db.String(500), nullable=True)
+    subcode = db.Column(db.String(500), nullable=True)
     excerpt = db.Column(db.Text, nullable=False)
     explanation = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     
     # Relationships
-    project = db.relationship('Project', backref=db.backref('excerpts', lazy=True))
-    media = db.relationship('Media', backref=db.backref('excerpts', lazy=True))
-    codebook = db.relationship('Codebook', backref=db.backref('excerpts', lazy=True))
-    user = db.relationship('User', backref=db.backref('excerpts', lazy=True))
+    project = db.relationship('Project', back_populates='excerpts')
+    media = db.relationship('Media', back_populates='excerpts')
+    codebook = db.relationship('Codebook', back_populates='excerpts')
+    user = db.relationship('User', back_populates='excerpts')
     
     def __repr__(self):
         return f'<Excerpt {self.id} - {self.excerpt[:50]}...>'
@@ -225,7 +240,10 @@ class Descriptor(db.Model):
     value = db.Column(db.Text, nullable=False)       # e.g., '2020', 'John Doe', 'New York'
     
     # Foreign key to Media
-    media_id = db.Column(db.Integer, db.ForeignKey('media.id', ondelete='CASCADE'), nullable=False)
+    media_id = db.Column(db.Integer, db.ForeignKey('media.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    # Relationships
+    media = db.relationship('Media', back_populates='descriptors')
     
     # Add an index on the key for faster lookups
     __table_args__ = (db.Index('idx_descriptor_key', 'key'),)

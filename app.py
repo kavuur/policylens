@@ -1079,7 +1079,7 @@ def upload_media():
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         filename = secure_filename(file.filename)
         if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], filename)):
-            flash('A file with this name already exists in the system.', 'warning')
+            flash(f'A file with this name already exists in the system - {filename}', 'warning')
             return redirect(request.url)
 
         # Read bytes to compute size and checksum for duplicate detection

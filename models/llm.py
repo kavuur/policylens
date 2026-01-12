@@ -12,7 +12,7 @@ from openai._exceptions import APIError, RateLimitError, APIConnectionError, Aut
 logger = logging.getLogger(__name__)
 
 class OpenAI_LLM(LLM, BaseModel):
-    model_name: str = "gpt-4o"
+    model_name: str = "gpt-5"
     temperature: float = 0.0
     openai_api_key: Optional[str] = None
     request_timeout: float = 60.0
@@ -65,7 +65,7 @@ class OpenAI_LLM(LLM, BaseModel):
     def get_completion_from_messages(
         self,
         messages,
-        model: str = "gpt-4o",
+        model: str = "gpt-5",
         temperature: float = 0.0,
         stop=None,
     ) -> Optional[str]:

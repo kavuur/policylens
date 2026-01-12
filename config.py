@@ -14,7 +14,7 @@ class Config:
     SEARCH_INDEX_PATH = "google_search.faiss"
 
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    OPENAI_MODEL = "gpt-4o"  # Updated to match original
+    OPENAI_MODEL = "gpt-5"  # Updated to match original
     OPENAI_TEMPERATURE = 0.0
     OPENAI_MAX_TOKENS = 3000
 
@@ -27,7 +27,7 @@ class Config:
     MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'False') == 'True'
     MAIL_USERNAME = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
-    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@policylens.local')
+    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@policylens.aphrc.org')
     
     # Password reset token expiry (24 hours)
     PASSWORD_RESET_TOKEN_EXPIRY = 86400  # seconds

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class PolicyAnalyzer:
     def __init__(self):
-        self.llm = OpenAI_LLM(model_name="gpt-4o", temperature=0.0, openai_api_key=os.getenv("OPENAI_API_KEY"))
+        self.llm = OpenAI_LLM(model_name="gpt-5", temperature=0.0, openai_api_key=os.getenv("OPENAI_API_KEY"))
         self.policy_builder = PolicyBuilder()  # Reuse for suggestion generation
         self.google_search = GoogleSearchService()
 

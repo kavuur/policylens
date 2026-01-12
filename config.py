@@ -29,6 +29,12 @@ class Config:
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@policylens.aphrc.org')
     
+    # Mailjet configuration (preferred)
+    MAILJET_API_KEY = os.getenv('MAILJET_API_KEY')
+    MAILJET_API_SECRET = os.getenv('MAILJET_API_SECRET')
+    MAILJET_SENDER_EMAIL = os.getenv('MAILJET_SENDER_EMAIL', MAIL_DEFAULT_SENDER)
+    MAILJET_SENDER_NAME = os.getenv('MAILJET_SENDER_NAME', 'PolicyLensAI')
+    
     # Password reset token expiry (24 hours)
     PASSWORD_RESET_TOKEN_EXPIRY = 86400  # seconds
 

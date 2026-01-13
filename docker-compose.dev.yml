@@ -8,6 +8,14 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URI}
       - UPLOAD_ROOT=${UPLOAD_ROOT}
+      - MAIL_SERVER=${MAIL_SERVER}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_USE_TLS=${MAIL_USE_TLS}
+      - MAIL_USE_SSL=${MAIL_USE_SSL}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER}
+      - MAIL_DEFAULT_SENDER_NAME=${MAIL_DEFAULT_SENDER_NAME}
       # Optional: set these in .env if your host user is not 1000:1000
       - APP_UID=${APP_UID:-1000}
       - APP_GID=${APP_GID:-1000}

@@ -33,7 +33,7 @@ from flask_login import (
     LoginManager, current_user, login_user, login_required, logout_user
 )
 from flask_migrate import Migrate
-# Mailjet is used for transactional email delivery
+from flask_mail import Mail, Message
 from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -70,43 +70,7 @@ app.config['WTF_CSRF_SECRET_KEY'] = 'another-secret-key'  # Change this to a dif
 from config import DevelopmentConfig, ProductionConfig
 app.config.from_object(DevelopmentConfig if app.debug else ProductionConfig)
 
-# Mailjet email sender helper
-def send_email_mailjet(subject, recipient_email, text_body, html_body=None):
-    api_key = os.getenv('MAILJET_API_KEY')
-    api_secret = os.getenv('MAILJET_API_SECRET')
-    sender_email = os.getenv('MAILJET_SENDER_EMAIL', os.getenv('MAIL_DEFAULT_SENDER', 'noreply@policylens.aphrc.org'))
-    sender_name = os.getenv('MAILJET_SENDER_NAME', 'PolicyLensAI')
-
-    if not api_key or not api_secret:
-        raise RuntimeError('Mailjet API credentials are not configured')
-
-    payload = {
-        "Messages": [
-            {
-                "From": {"Email": sender_email, "Name": sender_name},
-                "To": [{"Email": recipient_email}],
-                "Subject": subject,
-                "TextPart": text_body or "",
-                "HTMLPart": html_body or text_body or "",
-            }
-        ]
-    }
-
-    resp = requests.post(
-        'https://api.mailjet.com/v3.1/send',
-        auth=(api_key, api_secret),
-        json=payload,
-        timeout=15,
-    )
-    try:
-        resp.raise_for_status()
-        data = resp.json()
-        status = (data.get('Messages') or [{}])[0].get('Status')
-        if status != 'success':
-            raise RuntimeError(f'Mailjet send failed: {data}')
-    except Exception as e:
-        # Include response text for diagnostics
-        raise RuntimeError(f'Mailjet error: {str(e)} | resp={resp.text[:500]}')
+mail = Mail(app)
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
@@ -704,12 +668,13 @@ def forgot_password():
 This link will expire in 24 hours. If you did not request a password reset, please ignore this email.
 """
                 html_body = render_template('auth/reset_email.html', user=user, reset_url=reset_url)
-                send_email_mailjet(
+                msg = Message(
                     subject='Password Reset Request',
-                    recipient_email=user.email,
-                    text_body=text_body,
-                    html_body=html_body,
+                    recipients=[user.email],
+                    body=text_body,
+                    html=html_body
                 )
+                mail.send(msg)
                 flash('A password reset link has been sent to your email address.', 'info')
                 return redirect(url_for('login'))
             except Exception as e:
@@ -777,12 +742,13 @@ To reset your password, visit the following link:
 This link will expire in 24 hours. If you did not request this, please contact an administrator.
 """
         html_body = render_template('auth/reset_email.html', user=user, reset_url=reset_url, admin_reset=True)
-        send_email_mailjet(
+        msg = Message(
             subject='Password Reset Request from Administrator',
-            recipient_email=user.email,
-            text_body=text_body,
-            html_body=html_body,
+            recipients=[user.email],
+            body=text_body,
+            html=html_body
         )
+        mail.send(msg)
         flash(f'Password reset link sent to {user.email}.', 'success')
     except Exception as e:
         app.logger.error(f'Error sending password reset email: {str(e)}')

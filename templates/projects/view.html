@@ -518,7 +518,10 @@
                                             <option value="" selected disabled>Select analysis...</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-4 text-md-end">
+                                    <div class="col-md-4 text-md-end d-flex justify-content-end gap-2 flex-wrap">
+                                        <button class="btn btn-outline-danger btn-sm" id="bulkDeleteBtn" disabled>
+                                            <i class="fas fa-trash me-1"></i> Delete Selected
+                                        </button>
                                         <button class="btn btn-primary btn-sm" id="bulkMoveBtn" disabled>
                                             <i class="fas fa-arrows-turn-right me-1"></i> Move Excerpts
                                         </button>
@@ -943,6 +946,7 @@
             } else {
                 $panel.removeClass('d-none');
             }
+            $('#bulkDeleteBtn').prop('disabled', count === 0);
             const targetValue = $('#bulkMoveTarget').val();
             const ready = count > 0 && targetValue;
             $('#bulkMoveBtn').prop('disabled', !ready);
@@ -1801,6 +1805,65 @@
             });
 
             $('#bulkMoveTarget').on('change', updateBulkMovePanel);
+            $('#bulkDeleteBtn').on('click', function () {
+                if (!selectedExcerptIds.size) {
+                    showAlert('Select excerpts to delete first.', 'danger');
+                    return;
+                }
+                const count = selectedExcerptIds.size;
+                const warningHtml = `
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        <strong>Permanent action:</strong> Delete ${count} excerpt${count === 1 ? '' : 's'}?
+                        <div class="mt-2 d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-danger" id="confirmBulkDelete">Delete</button>
+                            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="alert">Cancel</button>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>`;
+                const $alertHost = $('#bulkMovePanel');
+                $alertHost.find('.alert.alert-warning').remove();
+                const $warning = $(warningHtml).appendTo($alertHost);
+
+                $warning.on('click', '#confirmBulkDelete', () => {
+                    const payload = {
+                        excerpt_ids: Array.from(selectedExcerptIds)
+                    };
+
+                    const $button = $('#bulkDeleteBtn');
+                    const originalHtml = $button.html();
+                    $button.prop('disabled', true)
+                        .html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
+
+                    showAlert('Deleting selected excerpts permanently…', 'warning');
+
+                    fetch('/api/excerpts/bulk_delete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (!data.success) {
+                                throw new Error(data.message || 'Failed to delete excerpts');
+                            }
+                            showAlert(data.message || 'Excerpts deleted.', 'success');
+                            clearBulkSelection();
+                            loadExcerpts();
+                        })
+                        .catch(err => {
+                            showAlert(err.message || 'Failed to delete excerpts', 'danger');
+                        })
+                        .finally(() => {
+                            $button.html(originalHtml);
+                            updateBulkMovePanel();
+                            $warning.alert('close');
+                        });
+                });
+                return;
+            });
             $('#bulkMoveBtn').on('click', function () {
                 if (!selectedExcerptIds.size) {
                     showAlert('Select excerpts to move first.', 'danger');

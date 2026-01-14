@@ -2814,6 +2814,47 @@ def bulk_move_excerpts():
     })
 
 
+@app.route('/api/excerpts/bulk_delete', methods=['POST'])
+@login_required
+def bulk_delete_excerpts():
+    data = request.get_json() or {}
+    excerpt_ids = data.get('excerpt_ids') or []
+
+    if not excerpt_ids:
+        return jsonify({'success': False, 'message': 'No excerpts selected'}), 400
+
+    try:
+        clean_ids = [int(eid) for eid in excerpt_ids]
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Invalid excerpt identifiers'}), 400
+
+    excerpts = Excerpt.query.filter(Excerpt.id.in_(clean_ids)).all()
+    if not excerpts:
+        return jsonify({'success': False, 'message': 'No matching excerpts found'}), 404
+
+    project_ids = {ex.project_id for ex in excerpts}
+    if len(project_ids) != 1:
+        return jsonify({'success': False, 'message': 'Excerpts must belong to the same project'}), 400
+
+    project = Project.query.get(project_ids.pop())
+    if not project:
+        return jsonify({'success': False, 'message': 'Project not found'}), 404
+
+    if not user_can_manage_project(project):
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    for ex in excerpts:
+        db.session.delete(ex)
+
+    db.session.commit()
+
+    count = len(excerpts)
+    flash(f'Deleting {count} excerpt{"s" if count != 1 else ""}…', 'warning')
+    flash('Excerpts deleted successfully.', 'success')
+
+    return jsonify({'success': True, 'message': f'Deleted {count} excerpt(s).'})
+
+
 @app.route('/api/analysis_runs/<int:analysis_id>', methods=['GET', 'PUT', 'DELETE'])
 @login_required
 def manage_analysis_run(analysis_id):

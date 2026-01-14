@@ -3,7 +3,7 @@ import logging
 import os
 import re
 import json
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import numpy as np
 from flask import current_app
@@ -27,6 +27,26 @@ class AnalysisService:
         from models.document import DocumentProcessor
         self.doc_processor = doc_processor if doc_processor else DocumentProcessor()
         logger.info("[analysis] service initialized")
+
+    def _rank_policy_chunks(self, policy_chunks: List[tuple], code: str, description: str, subcode: Optional[str] = None, top_k: int = 10) -> List[tuple]:
+        if not policy_chunks:
+            return []
+
+        query_text = f"{code}: {description}".strip()
+        if subcode:
+            query_text = f"{query_text} · {subcode}"
+
+        scored = []
+        for chunk in policy_chunks:
+            try:
+                _, chunk_text, _ = chunk
+                score = self.doc_processor.calculate_similarity(chunk_text, query_text)
+                scored.append((score, chunk))
+            except Exception as exc:
+                logger.warning(f"[analysis] chunk ranking failed: {exc}")
+
+        scored.sort(key=lambda item: item[0], reverse=True)
+        return [chunk for _, chunk in scored[:top_k]]
 
     def estimate_tokens(self, text: str) -> int:
         """Estimate token count for a given text."""
@@ -136,19 +156,22 @@ POLICY CHUNKS:
             f"[analysis] processing code='{code}'{f' subcode={subcode}' if subcode else ''} description='{description}'"
         )
 
-        # Estimate token usage
-        combined_text = description + "\n".join([txt for _, txt, _ in selected_policy_chunks])
+        policy_chunks_for_code = list(selected_policy_chunks)
+        combined_text = description + "\n".join([txt for _, txt, _ in policy_chunks_for_code])
         approximate_tokens = self.estimate_tokens(combined_text)
         TOKEN_LIMIT = 10000
 
         if approximate_tokens > TOKEN_LIMIT:
-            query = f"{code}: {description}" + (f" - {subcode}" if subcode else "")
-            selected_policy_chunks = self.doc_processor.retrieve_top_k_chunks(
-                query=query, top_k=10, is_framework=False
+            filtered = self._rank_policy_chunks(policy_chunks_for_code, code, description, subcode, top_k=10)
+            if filtered:
+                policy_chunks_for_code = filtered
+            else:
+                policy_chunks_for_code = policy_chunks_for_code[:10]
+            logger.info(
+                f"[analysis] token limit exceeded for code='{code}'. restricted to {len(policy_chunks_for_code)} local chunks"
             )
-            logger.info(f"[analysis] token limit exceeded, using top_k=10 chunks for code='{code}'")
 
-        prompt = self.generate_analysis_prompt(code, description, subcode, selected_policy_chunks)
+        prompt = self.generate_analysis_prompt(code, description, subcode, policy_chunks_for_code)
 
         try:
             raw_output = self.llm.invoke(prompt)

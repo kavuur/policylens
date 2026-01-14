@@ -69,9 +69,12 @@
                                 class="btn btn-sm btn-outline-info me-1" title="Edit Descriptors">
                                 <i class="fas fa-tags"></i>
                             </a>
-                            <button class="btn btn-sm btn-outline-danger delete-media" data-id="{{ media.id }}">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                            <form method="POST" action="{{ url_for('delete_media', media_id=media.id) }}" class="d-inline delete-media-form" data-filename="{{ media.filename }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Media">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
                             {% endif %}
                         </td>
                     </tr>
@@ -114,26 +117,29 @@
         mediaRows.forEach(row => row.style.display = '');
     });
 
-    // Delete media confirmation
-    document.querySelectorAll('.delete-media').forEach(button => {
-        button.addEventListener('click', function () {
-            const mediaId = this.dataset.id;
-            if (confirm('Are you sure you want to delete this media item?')) {
-                fetch(`/media/${mediaId}/delete`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            this.closest('tr').remove();
-                        } else {
-                            alert('Error deleting media');
-                        }
-                    });
+    function showFlashAlert(message, type = 'warning') {
+        let container = document.getElementById('inline-flash-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'inline-flash-container';
+            const cardBody = document.querySelector('.card-body');
+            cardBody?.insertAdjacentElement('afterbegin', container);
+        }
+        container.innerHTML = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>`;
+    }
+
+    document.querySelectorAll('.delete-media-form').forEach(form => {
+        form.addEventListener('submit', function (event) {
+            const filename = this.dataset.filename || 'this media item';
+            if (!confirm(`Are you sure you want to delete "${filename}"?`)) {
+                event.preventDefault();
+                return;
             }
+            showFlashAlert(`Deleting "${filename}"…`, 'warning');
         });
     });
 </script>

@@ -1720,24 +1720,49 @@ def edit_media(media_id):
     return render_template('media/edit.html', media=media)
 
 @app.route('/media/<int:media_id>/delete', methods=['POST'])
+@app.route('/media/delete/<int:media_id>', methods=['POST'])
 @login_required
 def delete_media(media_id):
+    wants_json = (
+        request.is_json
+        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']
+    )
+
+    def _deny(message, status=403):
+        if wants_json:
+            return jsonify({'success': False, 'error': message}), status
+        flash(message, 'danger')
+        return redirect(url_for('list_media'))
+
     if current_user.is_view_only_admin:
-        return jsonify({'success': False, 'error': 'View-only admins cannot delete media'}), 403
+        return _deny('View-only admins cannot delete media')
+
     media = Media.query.get_or_404(media_id)
-    if media.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    if media.user_id != current_user.id and not can_view_all():
+        return _deny('Permission denied')
+
+    if not wants_json:
+        flash(f'Deleting "{media.filename}"…', 'warning')
+
     project_id = media.project_id
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], media.filename)
     if os.path.exists(file_path):
-        try: os.remove(file_path)
-        except Exception as e: app.logger.error(f'Error deleting file {file_path}: {e}')
+        try:
+            os.remove(file_path)
+        except Exception as e:
+            app.logger.error(f'Error deleting file {file_path}: {e}')
+
     db.session.delete(media)
     if project_id:
         project = Project.query.get(project_id)
         if project and project.media_count > 0:
             project.media_count -= 1
     db.session.commit()
+
+    if wants_json:
+        return jsonify({'success': True, 'message': 'Media deleted successfully.', 'media_id': media_id})
+
     flash('Media deleted successfully!', 'success')
     return redirect(url_for('list_media'))
 

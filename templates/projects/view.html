@@ -43,6 +43,13 @@
         word-break: break-word;
         max-height: 100px;
     }
+
+    .text-snippet {
+        max-width: 240px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 </style>
 {% endblock %}
 
@@ -365,6 +372,26 @@
                                 </div>
                             </div>
 
+                            <!-- Analysis Metadata -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0">Analysis Details</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="analysisName" class="form-label">Analysis Name</label>
+                                        <input type="text" class="form-control" id="analysisName"
+                                            placeholder="e.g., Baseline Review" {% if not project.media_items or not project.codebooks %}disabled{% endif %}>
+                                        <div class="form-text">This label will appear in the excerpts tab.</div>
+                                    </div>
+                                    <div class="mb-0">
+                                        <label for="analysisNotes" class="form-label">Notes (optional)</label>
+                                        <textarea class="form-control" id="analysisNotes" rows="3"
+                                            placeholder="Add context or goals for this run..." {% if not project.media_items or not project.codebooks %}disabled{% endif %}></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Analyze Button -->
                             <div class="d-grid gap-2">
                                 <button class="btn btn-primary btn-lg btn-analyze" id="analyzeBtn" {% if not
@@ -407,33 +434,33 @@
                         </div>
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5>Excerpts</h5>
+                                <h5 class="mb-0">Excerpts</h5>
                                 {% if not current_user.is_view_only_admin %}
                                 <button type="button" class="btn btn-success btn-sm" id="addExcerptBtn">
                                     <i class="fas fa-plus me-1"></i> Add Excerpt
                                 </button>
                                 {% endif %}
                             </div>
-                            <div id="excerptsTableContainer">
-                                <table id="excerptsTable" class="table table-striped table-bordered excerpts-table"
-                                    style="width:100%">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th style="width: 5%;">ID</th>
-                                            <th style="width: 15%;">Media</th>
-                                            <th style="width: 10%;">Code</th>
-                                            <th style="width: 10%;">Subcode</th>
-                                            <th style="width: 25%;">Excerpt</th>
-                                            <th style="width: 25%;">Explanation</th>
-                                            <th style="width: 10%;">Created At</th>
-                                            <th style="width: 10%;">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Populated dynamically via JavaScript -->
-                                    </tbody>
-                                </table>
+                            {% if not current_user.is_view_only_admin %}
+                            <div id="bulkMovePanel" class="alert alert-light border py-2 px-3 d-none">
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-md-4">
+                                        <strong id="bulkMoveCount">0</strong> selected
+                                    </div>
+                                    <div class="col-md-4">
+                                        <select id="bulkMoveTarget" class="form-select form-select-sm">
+                                            <option value="" selected disabled>Select analysis...</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 text-md-end">
+                                        <button class="btn btn-primary btn-sm" id="bulkMoveBtn" disabled>
+                                            <i class="fas fa-arrows-turn-right me-1"></i> Move Excerpts
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
+                            {% endif %}
+                            <div id="excerptsAccordion" class="accordion"></div>
                             <div id="excerptsEmpty" class="text-center py-4 d-none">
                                 <i class="fas fa-quote-right fa-3x text-muted mb-3"></i>
                                 <p class="text-muted">No excerpts found for this project.</p>
@@ -448,6 +475,38 @@
 
 {% include 'projects/_excerpt_modal.html' %}
 {% include 'projects/_view_excerpt_modal.html' %}
+
+<!-- Analysis Run Modal -->
+<div class="modal fade" id="analysisModal" tabindex="-1" aria-labelledby="analysisModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="analysisModalLabel">Update Analysis</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="analysisForm">
+                <div class="modal-body">
+                    <input type="hidden" id="analysisIdField" name="analysis_id">
+                    <div class="mb-3">
+                        <label for="analysisNameField" class="form-label">Analysis Name</label>
+                        <input type="text" class="form-control" id="analysisNameField" name="name" required>
+                    </div>
+                    <div class="mb-0">
+                        <label for="analysisNotesField" class="form-label">Notes (optional)</label>
+                        <textarea class="form-control" id="analysisNotesField" name="notes" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveAnalysisBtn">
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <!-- Add Collaborator Modal -->
 <div class="modal fade" id="addCollaboratorModal" tabindex="-1" aria-labelledby="addCollaboratorModalLabel"
@@ -543,8 +602,32 @@
     }
 </style>
 <script>
+    window.PolicyLensExcerptsOverride = true;
     $(document).ready(function () {
-        // --------- tiny helper for analysis banner ----------
+        const projectId = {{ project.id }};
+        const csrfToken = '{{ csrf_token() }}';
+        const canManageExcerpts = {{ 'true' if not current_user.is_view_only_admin else 'false' }};
+        const excerptModalEl = document.getElementById('excerptModal');
+        const excerptModal = new bootstrap.Modal(excerptModalEl);
+        const viewExcerptModalEl = document.getElementById('viewExcerptModal');
+        const viewExcerptModal = new bootstrap.Modal(viewExcerptModalEl);
+        const excerptForm = document.getElementById('excerptForm');
+        const analysisModalEl = document.getElementById('analysisModal');
+        const analysisModal = analysisModalEl ? new bootstrap.Modal(analysisModalEl) : null;
+        const analysisForm = document.getElementById('analysisForm');
+        const analysisNameField = document.getElementById('analysisNameField');
+        const analysisNotesField = document.getElementById('analysisNotesField');
+        const analysisIdField = document.getElementById('analysisIdField');
+        const saveAnalysisBtn = document.getElementById('saveAnalysisBtn');
+        let excerptMode = 'add';
+        let currentExcerptId = null;
+        let lastViewedExcerpt = null;
+        const selectedExcerptIds = new Set();
+        let availableAnalyses = [];
+        let activeAnalysisId = null;
+        const exportFormats = ['csv', 'excel', 'word', 'pdf'];
+        const exportExtensionMap = { csv: 'csv', excel: 'xlsx', word: 'docx', pdf: 'pdf' };
+
         function showAnalysisStatus(message, type = 'success') {
             const $el = $('#analysisStatus');
             $el.removeClass('d-none alert-success alert-danger alert-info')
@@ -552,8 +635,26 @@
                 .text(message);
         }
 
-        // Helper function to show alerts in collaborator modal
-        function showAlert(message, type) {
+        function showAlert(message, type = 'info') {
+            const container = document.querySelector('.tab-content');
+            if (!container) {
+                console.warn('Cannot display alert without container:', message);
+                return;
+            }
+            const wrapper = document.createElement('div');
+            wrapper.className = `alert alert-${type} alert-dismissible fade show`;
+            wrapper.innerHTML = `
+                <i class="fas ${type === 'danger' ? 'fa-exclamation-circle' : 'fa-check-circle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+            container.prepend(wrapper);
+            setTimeout(() => {
+                const alertInstance = bootstrap.Alert.getOrCreateInstance(wrapper);
+                alertInstance.close();
+            }, 4000);
+        }
+
+        function showInlineAlert(message, type) {
             const alertDiv = $('#addCollaboratorAlert');
             alertDiv.removeClass('d-none alert-success alert-danger')
                 .addClass(`alert-${type}`)
@@ -568,25 +669,490 @@
             }
         }
 
-        // Add collaborator form submission
+        function formatDate(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            return date.toLocaleString('en-US', { timeZone: 'Africa/Nairobi' });
+        }
+
+        function escapeHtml(value) {
+            return $('<div>').text(value || '').html();
+        }
+
+        function truncateText(value, maxLength = 120) {
+            const text = (value || '').trim();
+            if (!text) {
+                return '';
+            }
+            return text.length > maxLength
+                ? `${text.slice(0, maxLength).trimEnd()}…`
+                : text;
+        }
+
+        function clearBulkSelection() {
+            if (!canManageExcerpts) {
+                return;
+            }
+            selectedExcerptIds.clear();
+            $('.move-excerpt-checkbox').prop('checked', false);
+            updateBulkMovePanel();
+        }
+
+        function populateBulkMoveOptions(options = []) {
+            if (!canManageExcerpts) {
+                return;
+            }
+            availableAnalyses = options.filter(Boolean);
+            const $select = $('#bulkMoveTarget');
+            if (!$select.length) {
+                return;
+            }
+            const optionMarkup = [
+                '<option value="" disabled selected>Select analysis...</option>',
+                '<option value="__manual__" data-name="Manual Excerpts (No Analysis)">Manual Excerpts (No Analysis)</option>'
+            ];
+            const seen = new Set();
+            availableAnalyses.forEach(option => {
+                if (!option || !option.id || seen.has(option.id)) {
+                    return;
+                }
+                seen.add(option.id);
+                const safeName = escapeHtml(option.name || 'Analysis Run');
+                optionMarkup.push(`<option value="${option.id}" data-name="${safeName}">${safeName}</option>`);
+            });
+            $select.html(optionMarkup.join(''));
+            $select.prop('selectedIndex', 0);
+            updateBulkMovePanel();
+        }
+
+        function updateBulkMovePanel() {
+            if (!canManageExcerpts) {
+                return;
+            }
+            const $panel = $('#bulkMovePanel');
+            if (!$panel.length) {
+                return;
+            }
+            const count = selectedExcerptIds.size;
+            $('#bulkMoveCount').text(count);
+            if (count === 0) {
+                $panel.addClass('d-none');
+            } else {
+                $panel.removeClass('d-none');
+            }
+            const targetValue = $('#bulkMoveTarget').val();
+            const ready = count > 0 && targetValue;
+            $('#bulkMoveBtn').prop('disabled', !ready);
+        }
+
+        function renderAnalysisActions(group, isManual = false) {
+            const targetId = group.analysis_id || 'manual';
+            const safeNameAttr = escapeHtml(group.analysis_name || (isManual ? 'Manual Excerpts' : 'Analysis Run'));
+            const actions = [];
+            const exportMenu = exportFormats.map(format => `
+                <li>
+                    <button class="dropdown-item analysis-export-option"
+                        data-format="${format}"
+                        data-analysis-id="${targetId}"
+                        data-is-manual="${isManual ? 'true' : 'false'}">
+                        ${format.toUpperCase()}
+                    </button>
+                </li>`).join('');
+            actions.push(`
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-file-export me-1"></i> Export
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        ${exportMenu}
+                    </ul>
+                </div>`);
+            if (canManageExcerpts && !isManual && group.analysis_id) {
+                actions.push(`
+                    <button class="btn btn-outline-secondary btn-sm analysis-rename"
+                        data-analysis-id="${group.analysis_id}" data-analysis-name="${safeNameAttr}">
+                        <i class="fas fa-pen"></i>
+                    </button>`);
+                actions.push(`
+                    <button class="btn btn-outline-danger btn-sm analysis-delete"
+                        data-analysis-id="${group.analysis_id}" data-analysis-name="${safeNameAttr}">
+                        <i class="fas fa-trash"></i>
+                    </button>`);
+            }
+            return actions.length
+                ? `<div class="d-flex flex-wrap gap-2 align-items-center">${actions.join('')}</div>`
+                : '';
+        }
+
+        function startAnalysisExport(analysisId, format, isManual = false) {
+            if (!format) {
+                return;
+            }
+            const endpoint = isManual
+                ? `/projects/${projectId}/manual_excerpts/export?format=${format}`
+                : `/api/analysis_runs/${analysisId}/export?format=${format}`;
+
+            fetch(endpoint, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(res => {
+                    if (!res.ok) {
+                        return res.json().then(data => {
+                            throw new Error(data.message || 'Failed to export analysis');
+                        }).catch(() => {
+                            throw new Error('Failed to export analysis');
+                        });
+                    }
+                    const disposition = res.headers.get('Content-Disposition') || '';
+                    return res.blob().then(blob => ({ blob, disposition }));
+                })
+                .then(({ blob, disposition }) => {
+                    const url = window.URL.createObjectURL(blob);
+                    let fallbackExt = exportExtensionMap[format] || format;
+                    let filename = isManual ? `manual_excerpts.${fallbackExt}` : `analysis_${analysisId}.${fallbackExt}`;
+                    const match = /filename="?([^";]+)"?/i.exec(disposition);
+                    if (match && match[1]) {
+                        filename = match[1];
+                    }
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(err => {
+                    showAlert(err.message || 'Failed to export analysis', 'danger');
+                });
+        }
+
+        function renderExcerptTable(excerpts) {
+            if (!excerpts.length) {
+                return '<p class="text-muted mb-0">No excerpts captured for this analysis.</p>';
+            }
+
+            const checkboxHeader = canManageExcerpts
+                ? '<th style="width:4%"></th>'
+                : '';
+
+            const rows = excerpts.map(excerpt => {
+                const mediaLink = excerpt.media_id
+                    ? `<a href="/media/${excerpt.media_id}" target="_blank" class="text-decoration-none">${escapeHtml(excerpt.media_filename || 'N/A')}</a>`
+                    : '<span class="text-muted">N/A</span>';
+                const analysisLabel = escapeHtml(excerpt.analysis_name || 'Manual Entry');
+                const excerptFull = excerpt.excerpt || '';
+                const explanationFull = excerpt.explanation || '';
+                const excerptDisplay = escapeHtml(truncateText(excerptFull, 120));
+                const explanationDisplay = escapeHtml(truncateText(explanationFull, 80));
+                const checkboxCell = canManageExcerpts
+                    ? `<td><input type="checkbox" class="form-check-input move-excerpt-checkbox" data-id="${excerpt.id}"></td>`
+                    : '';
+                const actionButtons = [
+                    `<button class="btn btn-sm btn-outline-primary view-excerpt" data-id="${excerpt.id}" title="View">
+                        <i class="fas fa-eye"></i>
+                    </button>`
+                ];
+                if (canManageExcerpts) {
+                    actionButtons.push(
+                        `<button class="btn btn-sm btn-outline-secondary edit-excerpt" data-id="${excerpt.id}" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>`,
+                        `<button class="btn btn-sm btn-outline-danger delete-excerpt" data-id="${excerpt.id}" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>`
+                    );
+                }
+                return `
+                    <tr data-id="${excerpt.id}" data-analysis-name="${analysisLabel}">
+                        ${checkboxCell}
+                        <td>${excerpt.id}</td>
+                        <td>${analysisLabel}</td>
+                        <td>${mediaLink}</td>
+                        <td>${escapeHtml(excerpt.code)}</td>
+                        <td>${escapeHtml(excerpt.subcode)}</td>
+                        <td class="text-snippet" title="${escapeHtml(excerptFull)}">${excerptDisplay}</td>
+                        <td class="text-snippet" title="${escapeHtml(explanationFull)}">${explanationDisplay}</td>
+                        <td>${formatDate(excerpt.created_at)}</td>
+                        <td class="text-nowrap">${actionButtons.join(' ')}</td>
+                    </tr>`;
+            }).join('');
+
+            return `
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                ${checkboxHeader}
+                                <th style="width:5%">ID</th>
+                                <th style="width:15%">Analysis</th>
+                                <th style="width:15%">Media</th>
+                                <th style="width:10%">Code</th>
+                                <th style="width:10%">Subcode</th>
+                                <th style="width:20%">Excerpt</th>
+                                <th style="width:20%">Explanation</th>
+                                <th style="width:10%">Created</th>
+                                <th style="width:10%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>`;
+        }
+
+        function renderAccordionSection(group, index, isManual = false) {
+            const collapseId = `analysis-${isManual ? 'manual' : group.analysis_id}-${index}`;
+            const headingId = `${collapseId}-heading`;
+            const expanded = index === 0 ? 'show' : '';
+            const title = isManual ? 'Manual Excerpts' : escapeHtml(group.analysis_name || 'Analysis');
+            const subtitle = isManual ? '' : `<span class="text-muted small ms-2">${formatDate(group.created_at)}</span>`;
+            const badge = `<span class="badge bg-secondary ms-2">${group.excerpts.length}</span>`;
+            const actionsMarkup = renderAnalysisActions(group, isManual);
+            return `
+                <div class="accordion-item" data-analysis-id="${group.analysis_id || ''}">
+                    <h2 class="accordion-header" id="${headingId}">
+                        <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                            <button class="accordion-button flex-grow-1 ${expanded ? '' : 'collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="${expanded ? 'true' : 'false'}" aria-controls="${collapseId}">
+                                <span class="fw-semibold">${title}</span>
+                                ${subtitle}
+                                ${badge}
+                            </button>
+                            ${actionsMarkup}
+                        </div>
+                    </h2>
+                    <div id="${collapseId}" class="accordion-collapse collapse ${expanded}" aria-labelledby="${headingId}" data-bs-parent="#excerptsAccordion">
+                        <div class="accordion-body">
+                            ${renderExcerptTable(group.excerpts)}
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function updateAnalyzeButtonState() {
+            const mediaSelected = ($('#mediaSelect').val() || []).length > 0;
+            const codebookSelected = !!$('#codebookSelect').val();
+            const hasName = ($('#analysisName').val() || '').trim().length > 0;
+            $('#analyzeBtn').prop('disabled', !(mediaSelected && codebookSelected && hasName));
+        }
+
+        function resetExcerptForm() {
+            excerptForm.reset();
+            excerptMode = 'add';
+            currentExcerptId = null;
+            $('#excerptId').val('');
+            $('#excerptAnalysisId').val('').data('original', '');
+            $('#excerptAnalysisName').val('').data('original', '');
+        }
+
+        function resetAnalysisForm() {
+            if (!analysisForm) {
+                return;
+            }
+            analysisForm.reset();
+            analysisIdField.value = '';
+            analysisNameField.classList.remove('is-invalid');
+        }
+
+        function populateExcerptForm(excerpt) {
+            excerptMode = 'edit';
+            currentExcerptId = excerpt.id;
+            $('#excerptModalLabel').text('Edit Excerpt');
+            $('#excerptId').val(excerpt.id);
+            $('#excerptMedia').val(excerpt.media_id || '');
+            $('#excerptCodebook').val(excerpt.codebook_id || '');
+            $('#excerptCode').val(excerpt.code || '');
+            $('#excerptSubcode').val(excerpt.subcode || '');
+            $('#excerptText').val(excerpt.excerpt || '');
+            $('#excerptExplanation').val(excerpt.explanation || '');
+            $('#excerptAnalysisId').val(excerpt.analysis_id || '').data('original', excerpt.analysis_id || '');
+            $('#excerptAnalysisName').val(excerpt.analysis_name || '').data('original', (excerpt.analysis_name || '').trim());
+        }
+
+        function fetchExcerpt(excerptId) {
+            return fetch(`/api/excerpts/${excerptId}`)
+                .then(res => {
+                    if (!res.ok) {
+                        return res.json().catch(() => ({})).then(data => {
+                            throw new Error(data.message || 'Failed to load excerpt');
+                        });
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (!data.success) throw new Error(data.message || 'Failed to load excerpt');
+                    return data.excerpt;
+                });
+        }
+
+        function fetchAnalysisRun(analysisId) {
+            return fetch(`/api/analysis_runs/${analysisId}`)
+                .then(res => {
+                    if (!res.ok) {
+                        return res.json().catch(() => ({})).then(data => {
+                            throw new Error(data.message || 'Failed to load analysis');
+                        });
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (!data.success) throw new Error(data.message || 'Failed to load analysis');
+                    return data.analysis_run;
+                });
+        }
+
+        function openAnalysisEditModal(analysisId) {
+            if (!analysisModal || !analysisId) {
+                return;
+            }
+            resetAnalysisForm();
+            $('#analysisModalLabel').text('Update Analysis');
+            saveAnalysisBtn.disabled = true;
+            fetchAnalysisRun(analysisId)
+                .then(run => {
+                    analysisIdField.value = run.id;
+                    analysisNameField.value = run.name || '';
+                    analysisNotesField.value = run.notes || '';
+                    saveAnalysisBtn.disabled = false;
+                    analysisModal.show();
+                })
+                .catch(err => {
+                    saveAnalysisBtn.disabled = false;
+                    showAlert(err.message || 'Failed to load analysis details', 'danger');
+                });
+        }
+
+        function deleteAnalysisRun(analysisId, analysisName = 'this analysis') {
+            if (!analysisId) {
+                return;
+            }
+            const confirmed = confirm(`Delete ${analysisName}? This will remove its analysis run but keep the excerpts available under manual entries.`);
+            if (!confirmed) {
+                return;
+            }
+            fetch(`/api/analysis_runs/${analysisId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.message || 'Failed to delete analysis');
+                    }
+                    showAlert(data.message || 'Analysis deleted', 'success');
+                    loadExcerpts();
+                })
+                .catch(err => {
+                    showAlert(err.message || 'Unable to delete analysis', 'danger');
+                });
+        }
+
+        function openAddExcerptModal() {
+            resetExcerptForm();
+            $('#excerptModalLabel').text('Add New Excerpt');
+            excerptModal.show();
+        }
+
+        function openEditExcerptModal(excerptId) {
+            fetchExcerpt(excerptId)
+                .then(excerpt => {
+                    populateExcerptForm(excerpt);
+                    excerptModal.show();
+                })
+                .catch(err => {
+                    showAlert(err.message || 'Failed to load excerpt for editing', 'danger');
+                });
+        }
+
+        function openViewExcerptModal(excerptId) {
+            fetchExcerpt(excerptId)
+                .then(excerpt => {
+                    lastViewedExcerpt = excerpt;
+                    $('#viewExcerptMedia').text(excerpt.media_name || 'N/A');
+                    $('#viewExcerptCode').text(excerpt.code || '—');
+                    $('#viewExcerptSubcode').text(excerpt.subcode || '—');
+                    $('#viewExcerptText').text(excerpt.excerpt || '—');
+                    $('#viewExcerptExplanation').text(excerpt.explanation || 'No explanation provided');
+                    $('#viewExcerptUser').text(excerpt.user_name || 'Unknown');
+                    $('#viewExcerptDate').text(formatDate(excerpt.created_at));
+                    $('#viewExcerptAnalysis').text(excerpt.analysis_name || 'Manual Entry');
+                    $('#viewExcerptModalLabel').text(excerpt.analysis_name ? `Excerpt · ${excerpt.analysis_name}` : 'Excerpt Details');
+                    viewExcerptModal.show();
+                })
+                .catch(err => {
+                    showAlert(err.message || 'Failed to load excerpt', 'danger');
+                });
+        }
+
+        function loadExcerpts() {
+            const scope = $('#excerptScope').val() || 'team';
+            $.ajax({
+                url: '{{ url_for("get_excerpts") }}',
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+                contentType: 'application/json',
+                data: JSON.stringify({ project_id: projectId, scope }),
+                success: function (response) {
+                    clearBulkSelection();
+                    populateBulkMoveOptions(response.analysis_options || []);
+                    const $accordion = $('#excerptsAccordion');
+                    const sections = [];
+
+                    (response.analyses || []).forEach((group, idx) => {
+                        sections.push(renderAccordionSection(group, idx));
+                    });
+
+                    if (response.manual_excerpts && response.manual_excerpts.length) {
+                        sections.push(renderAccordionSection({
+                            analysis_id: null,
+                            analysis_name: 'Manual Excerpts',
+                            created_at: null,
+                            excerpts: response.manual_excerpts
+                        }, sections.length, true));
+                    }
+
+                    if (sections.length) {
+                        $accordion.html(sections.join(''));
+                        $('#excerptsEmpty').addClass('d-none');
+                    } else {
+                        $accordion.empty();
+                        $('#excerptsEmpty').removeClass('d-none');
+                    }
+
+                    const badge = $('#excerptsBadge');
+                    if (response.total_count) {
+                        badge.text(response.total_count).removeClass('d-none');
+                    } else {
+                        badge.addClass('d-none');
+                    }
+                },
+                error: function (xhr) {
+                    const errorMessage = xhr.responseJSON && xhr.responseJSON.error
+                        ? xhr.responseJSON.error
+                        : 'Unknown error';
+                    $('#excerptsAccordion').html(`
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            Failed to load excerpts: ${errorMessage}
+                        </div>`);
+                }
+            });
+        }
+
         $('#addCollaboratorForm').on('submit', function (e) {
             e.preventDefault();
 
             const email = $('#collaboratorEmail').val().trim();
-            const alertDiv = $('#addCollaboratorAlert');
             const submitBtn = $(this).find('button[type="submit"]');
             const spinner = $('#addCollaboratorSpinner');
 
-            alertDiv.addClass('d-none').removeClass('alert-success alert-danger').text('');
-
             if (!email) {
-                showAlert('Please enter an email address', 'danger');
+                showInlineAlert('Please enter an email address', 'danger');
                 return;
             }
 
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
-                showAlert('Please enter a valid email address', 'danger');
+                showInlineAlert('Please enter a valid email address', 'danger');
                 return;
             }
 
@@ -596,65 +1162,49 @@
             $.ajax({
                 url: '{{ url_for("add_collaborator", project_id=project.id) }}',
                 method: 'POST',
-                headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
+                headers: { 'X-CSRFToken': csrfToken },
                 contentType: 'application/json',
-                data: JSON.stringify({ email: email }),
+                data: JSON.stringify({ email }),
                 dataType: 'json',
                 success: function (response) {
                     if (response && response.success) {
-                        showAlert('Collaborator added successfully!', 'success');
-
+                        showInlineAlert('Collaborator added successfully!', 'success');
                         const collaborator = response.collaborator;
-                        const collaboratorHtml = `
-                        <div class="d-flex align-items-center mb-3 collaborator-item" data-user-id="${collaborator.id}">
-                            <div class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                                ${collaborator.name ? collaborator.name[0].toUpperCase() : (collaborator.email ? collaborator.email[0].toUpperCase() : '')}
-                            </div>
-                            <div class="flex-grow-1">
-                                <h6 class="mb-0">${collaborator.name || collaborator.email || 'Unknown User'}</h6>
-                                <small class="text-muted">${collaborator.email || ''}</small>
-                            </div>
-                            <button class="btn btn-sm btn-outline-danger remove-collaborator"
+                        const html = `
+                            <div class="d-flex align-items-center mb-3 collaborator-item" data-user-id="${collaborator.id}">
+                                <div class="avatar bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                    ${collaborator.name ? collaborator.name[0].toUpperCase() : (collaborator.email ? collaborator.email[0].toUpperCase() : '')}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0">${collaborator.name || collaborator.email || 'User'}</h6>
+                                    <small class="text-muted">${collaborator.email || ''}</small>
+                                </div>
+                                <button class="btn btn-sm btn-outline-danger remove-collaborator"
                                     data-user-id="${collaborator.id}"
                                     data-user-name="${collaborator.name || collaborator.email || 'User'}"
                                     data-remove-url="/projects/{{ project.id }}/remove_collaborator/${collaborator.id}">
-                                <i class="fas fa-user-minus"></i> Remove
-                            </button>
-                        </div>`;
+                                    <i class="fas fa-user-minus"></i> Remove
+                                </button>
+                            </div>`;
 
                         if ($('#collaboratorsList .text-center').length) {
-                            $('#collaboratorsList').html(collaboratorHtml);
+                            $('#collaboratorsList').html(html);
                         } else {
-                            $('#collaboratorsList').append(collaboratorHtml);
+                            $('#collaboratorsList').append(html);
                         }
 
                         $('#collaboratorEmail').val('');
-
-                        setTimeout(() => {
-                            $('#addCollaboratorModal').modal('hide');
-                        }, 1500);
+                        setTimeout(() => $('#addCollaboratorModal').modal('hide'), 1500);
                     } else {
-                        const errorMessage = response && response.message
-                            ? response.message
-                            : 'An unexpected error occurred while adding the collaborator';
-                        showAlert(errorMessage, 'danger');
+                        showInlineAlert(response.message || 'Failed to add collaborator', 'danger');
                     }
                 },
                 error: function (xhr) {
                     let errorMessage = 'An error occurred while adding the collaborator';
-                    try {
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        } else if (xhr.responseText) {
-                            const response = JSON.parse(xhr.responseText);
-                            if (response && response.message) {
-                                errorMessage = response.message;
-                            }
-                        }
-                    } catch (e) {
-                        console.error('Error parsing error response:', e);
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
                     }
-                    showAlert(errorMessage, 'danger');
+                    showInlineAlert(errorMessage, 'danger');
                 },
                 complete: function () {
                     submitBtn.prop('disabled', false);
@@ -663,282 +1213,443 @@
             });
         });
 
-        // Handle analyze button click (UPDATED: show only success message and switch to Excerpts tab)
         $('#analyzeBtn').on('click', function () {
             const selectedMedia = $('#mediaSelect').val() || [];
             const selectedCodebook = $('#codebookSelect').val();
-            const projectId = {{ project.id }};
+            const analysisName = ($('#analysisName').val() || '').trim();
+            const analysisNotes = ($('#analysisNotes').val() || '').trim();
 
-        if (selectedMedia.length === 0 || !selectedCodebook) {
-            alert('Please select at least one media file and a codebook.');
-            return;
-        }
+            if (!analysisName) {
+                showAnalysisStatus('Please provide an analysis name before running.', 'danger');
+                return;
+            }
+            if (!selectedMedia.length || !selectedCodebook) {
+                alert('Please select at least one media file and a codebook.');
+                return;
+            }
 
-        const $btn = $(this);
-        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Analyzing...');
+            const $btn = $(this);
+            $btn.prop('disabled', true)
+                .html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Analyzing...');
 
-        $.ajax({
-            url: '{{ url_for("analyze_project") }}',
-            method: 'POST',
-            headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
-            contentType: 'application/json',
-            data: JSON.stringify({
-                media_ids: selectedMedia,
-                codebook_id: selectedCodebook,
-                project_id: projectId
-            }),
-            success: function (response) {
-                if (response.saved_excerpt_ids && response.saved_excerpt_ids.length > 0) {
-                    const resultsHtml = `
-                        <div class="card-body">
-                            <p class="text-success">
-                                Successfully saved ${response.saved_excerpt_ids.length} excerpts.
-                                <a href="#excerpts" class="nav-link d-inline" data-bs-toggle="tab" data-bs-target="#excerpts">View Excerpts</a>
-                            </p>
-                        </div>
-                    `;
-                    $('#analysisResults').html(resultsHtml).removeClass('d-none');
-
-                    showAnalysisStatus(`Successfully saved ${response.saved_excerpt_ids.length} excerpts.`, 'success');
-                    const tabTrigger = document.querySelector('#excerpts-tab');
-                    if (tabTrigger) {
-                        new bootstrap.Tab(tabTrigger).show();
+            $.ajax({
+                url: '{{ url_for("analyze_project") }}',
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    media_ids: selectedMedia,
+                    codebook_id: selectedCodebook,
+                    project_id: projectId,
+                    analysis_name: analysisName,
+                    analysis_notes: analysisNotes
+                }),
+                success: function (response) {
+                    if (response.saved_excerpt_ids && response.saved_excerpt_ids.length > 0) {
+                        const runLabel = response.analysis_name || analysisName;
+                        $('#analysisResults').html(`
+                            <div class="card-body">
+                                <p class="text-success mb-0">
+                                    Saved ${response.saved_excerpt_ids.length} excerpts under <strong>${runLabel}</strong>.
+                                </p>
+                            </div>
+                        `).removeClass('d-none');
+                        showAnalysisStatus(`Saved ${response.saved_excerpt_ids.length} excerpts under "${runLabel}".`, 'success');
+                        const tabTrigger = document.querySelector('#excerpts-tab');
+                        if (tabTrigger) {
+                            new bootstrap.Tab(tabTrigger).show();
+                        }
+                        loadExcerpts();
+                    } else {
+                        $('#analysisResults').html(`
+                            <div class="card-body">
+                                <p class="text-muted mb-0">${response.explanation || 'No excerpts found.'}</p>
+                            </div>
+                        `).removeClass('d-none');
                     }
-                    loadExcerpts();
-                } else {
-                    $('#analysisResults').html(`
-                        <div class="card-body">
-                            <p class="text-muted">${response.explanation || 'No excerpts found.'}</p>
-                        </div>
-                    `).removeClass('d-none');
-                }
-            },
-            error: function (xhr) {
-                let errorMessage = 'An error occurred during analysis.';
-                try {
+                },
+                error: function (xhr) {
+                    let errorMessage = 'An error occurred during analysis.';
                     if (xhr.responseJSON && xhr.responseJSON.error) {
                         errorMessage = xhr.responseJSON.error;
                     }
-                } catch (e) { /* ignore */ }
-                $('#analysisResults').html(`
-                    <div class="card-body">
-                        <p class="text-danger">${errorMessage}</p>
-                    </div>
-                `).removeClass('d-none');
-            },
-            complete: function () {
-                $btn.prop('disabled', false).html('<i class="fas fa-chart-line me-2"></i> Analyze Selection');
-            }
+                    showAnalysisStatus(errorMessage, 'danger');
+                },
+                complete: function () {
+                    $btn.prop('disabled', false)
+                        .html('<i class="fas fa-chart-line me-2"></i> Analyze Selection');
+                }
+            });
         });
-    });
 
-    // Function to load excerpts for the project
-    function loadExcerpts() {
-        const projectId = {{ project.id }};
-    const scope = $('#excerptScope').val() || 'team';
+        $('#excerptForm').on('submit', function (e) {
+            e.preventDefault();
+            const payload = {
+                project_id: projectId,
+                media_id: $('#excerptMedia').val(),
+                codebook_id: $('#excerptCodebook').val(),
+                code: $('#excerptCode').val(),
+                subcode: $('#excerptSubcode').val(),
+                excerpt: $('#excerptText').val(),
+                explanation: $('#excerptExplanation').val(),
+                analysis_id: $('#excerptAnalysisId').val() || null,
+                analysis_name: ($('#excerptAnalysisName').val() || '').trim()
+            };
 
-    $.ajax({
-        url: '{{ url_for("get_excerpts") }}',
-        method: 'POST',
-        headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
-        contentType: 'application/json',
-        data: JSON.stringify({ project_id: projectId, scope: scope }),
-        success: function (response) {
-            const $tableBody = $('#excerptsTable tbody');
-            const $emptyState = $('#excerptsEmpty');
-            const $badge = $('#excerptsBadge');
-            const wasInitialized = $.fn.DataTable.isDataTable('#excerptsTable');
+            const mode = excerptMode;
+            const url = mode === 'edit' && currentExcerptId ? `/api/excerpts/${currentExcerptId}` : '/api/excerpts';
+            const method = mode === 'edit' ? 'PUT' : 'POST';
+            const $submitBtn = $('#saveExcerptBtn');
+            const originalHtml = $submitBtn.html();
+            $submitBtn.prop('disabled', true)
+                .html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
 
-            // If already initialized, destroy before rebuilding rows to avoid duplicate DataTable instances
-            if (wasInitialized) {
-                $('#excerptsTable').DataTable().clear().destroy();
-            }
-
-            $tableBody.empty();
-
-            if (response.excerpts && response.excerpts.length > 0) {
-                response.excerpts.forEach(excerpt => {
-                    const mediaUrl = excerpt.media_id ? `/media/view/${excerpt.media_id}` : '#';
-                    const mediaLink = excerpt.media_id
-                        ? `<a href="${mediaUrl}" target="_blank" class="text-primary text-decoration-none" title="${excerpt.media_filename || 'N/A'}">${excerpt.media_filename ? excerpt.media_filename.substring(0, 20) + (excerpt.media_filename.length > 20 ? '...' : '') : 'N/A'}</a>`
-                        : `<span class="text-muted">N/A</span>`;
-
-                    // ISO date for correct sorting + display string
-                    const iso = excerpt.created_at || null;
-                    const displayWhen = iso ? new Date(iso).toLocaleString('en-US', { timeZone: 'Africa/Nairobi' }) : '';
-
-                    $tableBody.append(`
-                            <tr class="excerpt-row">
-                                <td>${excerpt.id}</td>
-                                <td>${mediaLink}</td>
-                                <td>${excerpt.code || 'N/A'}</td>
-                                <td>${excerpt.subcode || 'N/A'}</td>
-                                <td class="excerpt-cell">${excerpt.excerpt ? $('<div>').text(excerpt.excerpt).html() : 'N/A'}</td>
-                                <td class="explanation-cell">${excerpt.explanation ? $('<div>').text(excerpt.explanation).html() : 'N/A'}</td>
-                                <td data-order="${iso || ''}">${displayWhen}</td>
-                                <td>
-                                    <a class="btn btn-sm btn-outline-primary" href="${mediaUrl}" target="_blank" title="View in context">
-                                        <i class="fas fa-eye me-1"></i> View
-                                    </a>
-                                    <button class="btn btn-sm btn-outline-secondary edit-excerpt" data-id="${excerpt.id}" title="Edit">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        `);
+            fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(payload)
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.message || 'Failed to save excerpt');
+                    }
+                    showAlert(data.message || 'Excerpt saved.', 'success');
+                    excerptModal.hide();
+                    loadExcerpts();
+                })
+                .catch(err => {
+                    showAlert(err.message || 'An error occurred while saving the excerpt', 'danger');
+                })
+                .finally(() => {
+                    $submitBtn.prop('disabled', false).html(originalHtml);
                 });
+        });
 
-                $tableBody.show();
-                $emptyState.addClass('d-none');
-                $badge.text(response.excerpts.length).removeClass('d-none');
-
-                // Re-initialize DataTables with newest first by Created At
-                $('#excerptsTable').DataTable({
-                    pageLength: 10,
-                    order: [[6, 'desc']], // uses data-order ISO for correct sorting
-                    columnDefs: [
-                        { targets: [4, 5, 7], orderable: false }
-                    ]
-                });
-            } else {
-                $tableBody.hide();
-                $emptyState.removeClass('d-none');
-                $badge.addClass('d-none');
-            }
-        },
-        error: function (xhr) {
-            $('#excerptsTableContainer').html(`
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-circle me-2"></i>
-                        Failed to load excerpts: ${xhr.responseJSON?.error || 'Unknown error'}
-                    </div>
-                `);
+        $('#excerptModal').on('hidden.bs.modal', resetExcerptForm);
+        if (analysisModalEl) {
+            $('#analysisModal').on('hidden.bs.modal', resetAnalysisForm);
         }
-    });
-    }
 
-    // Load excerpts when the excerpts tab is shown
-    $('button[data-bs-toggle="tab"][data-bs-target="#excerpts"]').on('shown.bs.tab', function () {
-        loadExcerpts();
-    });
+        if (analysisForm) {
+            $('#analysisForm').on('submit', function (e) {
+                e.preventDefault();
+                const analysisId = (analysisIdField.value || '').trim();
+                let name = (analysisNameField.value || '').trim();
+                const notes = (analysisNotesField.value || '').trim();
+                if (!analysisId) {
+                    showAlert('Unable to determine which analysis to update.', 'danger');
+                    return;
+                }
+                if (!name) {
+                    analysisNameField.classList.add('is-invalid');
+                    analysisNameField.focus();
+                    return;
+                }
+                analysisNameField.classList.remove('is-invalid');
 
-    // Manual refresh + scope change
-    $('#refreshExcerpts').on('click', loadExcerpts);
-    $('#excerptScope').on('change', loadExcerpts);
+                const $btn = $('#saveAnalysisBtn');
+                const $spinner = $btn.find('.spinner-border');
+                $btn.prop('disabled', true);
+                $spinner.removeClass('d-none');
 
-    // Load excerpts immediately if the excerpts tab is active on page load
-    if ($('#excerpts').hasClass('active')) {
-        loadExcerpts();
-    }
-
-    // Media search functionality
-    $(document).on('input', '#mediaSearch', function () {
-        const searchTerm = $(this).val().toLowerCase();
-        const $select = $('#mediaSelect');
-
-        if (searchTerm === '') {
-            $select.find('option').show();
-        } else {
-            $select.find('option').each(function () {
-                const $option = $(this);
-                const matches = $option.data('search').includes(searchTerm);
-                $option.toggle(matches);
+                fetch(`/api/analysis_runs/${analysisId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ name, notes })
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.success) {
+                            throw new Error(data.message || 'Failed to update analysis');
+                        }
+                        showAlert(data.message || 'Analysis updated.', 'success');
+                        if (analysisModal) {
+                            analysisModal.hide();
+                        }
+                        loadExcerpts();
+                    })
+                    .catch(err => {
+                        showAlert(err.message || 'Failed to update analysis', 'danger');
+                    })
+                    .finally(() => {
+                        $btn.prop('disabled', false);
+                        $spinner.addClass('d-none');
+                    });
             });
         }
-        $select.trigger('change.select2');
-    });
 
-    // Initialize select2 for media multi-select if available
-    if (typeof $.fn.select2 === 'function') {
-        $('#mediaSelect').select2({
-            placeholder: 'Select media files',
-            width: '100%',
-            closeOnSelect: false,
-            dropdownAutoWidth: true,
-            dropdownParent: $('#analysis'),
-            theme: 'bootstrap-5',
-            templateResult: function (media) {
-                if (!media.id) return media.text;
-                return $('<div><i class="fas fa-file me-2"></i><span>' + media.text + '</span></div>');
-            },
-            templateSelection: function (media) { return media.text; }
+        if (analysisNameField) {
+            $('#analysisNameField').on('input', function () {
+                this.classList.remove('is-invalid');
+            });
+        }
+
+        $('#excerptAnalysisName').on('input', function () {
+            const currentValue = ($(this).val() || '').trim();
+            const originalValue = ($(this).data('original') || '').trim();
+            const hiddenInput = $('#excerptAnalysisId');
+            const originalId = hiddenInput.data('original') || '';
+
+            if (!currentValue.length) {
+                hiddenInput.val('');
+                return;
+            }
+
+            if (originalValue && currentValue === originalValue) {
+                hiddenInput.val(originalId);
+            } else {
+                hiddenInput.val('');
+            }
         });
 
-        $('#codebookSelect').select2({
-            placeholder: 'Select a codebook',
-            width: '100%',
-            theme: 'bootstrap-5',
-            dropdownParent: $('#analysis')
+        $('#editExcerptFromView').on('click', function () {
+            if (lastViewedExcerpt) {
+                viewExcerptModal.hide();
+                populateExcerptForm(lastViewedExcerpt);
+                excerptModal.show();
+            }
         });
-    } else {
-        console.warn('Select2 not loaded; selects will use default browser UI.');
-    }
 
-    // Remove collaborator
-    $(document).on('click', '.remove-collaborator', function () {
-        const button = $(this);
-        const userId = button.data('user-id');
-        const userName = button.data('user-name');
+        $('#addExcerptBtn').on('click', openAddExcerptModal);
+        $(document).on('click', '.edit-excerpt', function () {
+            openEditExcerptModal($(this).data('id'));
+        });
+        $(document).on('click', '.view-excerpt', function () {
+            openViewExcerptModal($(this).data('id'));
+        });
+        $(document).on('click', '.delete-excerpt', function () {
+            const excerptId = $(this).data('id');
+            if (!excerptId) {
+                return;
+            }
+            const rawLabel = $(this).closest('tr').data('analysis-name') || 'this excerpt';
+            const analysisLabel = $('<textarea>').html(rawLabel).text() || 'this excerpt';
+            if (!confirm(`Delete ${analysisLabel}? This cannot be undone.`)) {
+                return;
+            }
+            const $button = $(this);
+            const originalHtml = $button.html();
+            $button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
 
-        if (confirm('Are you sure you want to remove ' + userName + ' from this project?')) {
+            fetch(`/api/excerpts/${excerptId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            })
+                .then(async res => {
+                    let payload = {};
+                    try {
+                        payload = await res.json();
+                    } catch (err) {
+                        /* ignore json parse errors */
+                    }
+                    if (!res.ok || !payload.success) {
+                        throw new Error(payload.message || 'Failed to delete excerpt');
+                    }
+                    return payload;
+                })
+                .then(payload => {
+                    showAlert(payload.message || 'Excerpt deleted.', 'success');
+                    loadExcerpts();
+                })
+                .catch(err => {
+                    showAlert(err.message || 'Failed to delete excerpt', 'danger');
+                })
+                .finally(() => {
+                    $button.prop('disabled', false).html(originalHtml);
+                });
+        });
+
+        $('#excerptsAccordion').on('click', '.analysis-export-option', function (e) {
+            e.preventDefault();
+            const format = ($(this).data('format') || '').toLowerCase();
+            if (!format) {
+                return;
+            }
+            const isManual = $(this).data('is-manual') === true || $(this).data('is-manual') === 'true';
+            const analysisId = $(this).data('analysis-id');
+            startAnalysisExport(analysisId, format, isManual);
+        });
+
+        $('#excerptsAccordion').on('click', '.analysis-rename', function (e) {
+            e.preventDefault();
+            const analysisId = $(this).data('analysis-id');
+            openAnalysisEditModal(analysisId);
+        });
+
+        $('#excerptsAccordion').on('click', '.analysis-delete', function (e) {
+            e.preventDefault();
+            const analysisId = $(this).data('analysis-id');
+            const rawName = $(this).data('analysis-name') || 'this analysis';
+            const decodedName = $('<textarea>').html(rawName).text() || 'this analysis';
+            deleteAnalysisRun(analysisId, decodedName);
+        });
+
+        $('#refreshExcerpts').on('click', loadExcerpts);
+        $('#excerptScope').on('change', loadExcerpts);
+        $('button[data-bs-toggle="tab"][data-bs-target="#excerpts"]').on('shown.bs.tab', loadExcerpts);
+        if ($('#excerpts').hasClass('active')) {
+            loadExcerpts();
+        }
+
+        if (canManageExcerpts) {
+            $(document).on('change', '.move-excerpt-checkbox', function () {
+                const id = parseInt($(this).data('id'), 10);
+                if (Number.isNaN(id)) {
+                    return;
+                }
+                if (this.checked) {
+                    selectedExcerptIds.add(id);
+                } else {
+                    selectedExcerptIds.delete(id);
+                }
+                updateBulkMovePanel();
+            });
+
+            $('#bulkMoveTarget').on('change', updateBulkMovePanel);
+            $('#bulkMoveBtn').on('click', function () {
+                if (!selectedExcerptIds.size) {
+                    showAlert('Select excerpts to move first.', 'danger');
+                    return;
+                }
+                const selectedValue = $('#bulkMoveTarget').val();
+                if (!selectedValue) {
+                    updateBulkMovePanel();
+                    return;
+                }
+
+                let targetAnalysisId = null;
+                let targetAnalysisName = '';
+                if (selectedValue === '__manual__') {
+                    targetAnalysisName = '';
+                } else {
+                    targetAnalysisId = parseInt(selectedValue, 10);
+                    if (Number.isNaN(targetAnalysisId)) {
+                        showAlert('Invalid analysis selection.', 'danger');
+                        return;
+                    }
+                    const match = availableAnalyses.find(opt => String(opt.id) === String(targetAnalysisId));
+                    targetAnalysisName = match ? match.name : '';
+                }
+
+                const payload = {
+                    excerpt_ids: Array.from(selectedExcerptIds),
+                    target_analysis_id: targetAnalysisId,
+                    target_analysis_name: targetAnalysisName
+                };
+
+                const $button = $('#bulkMoveBtn');
+                const originalHtml = $button.html();
+                $button.prop('disabled', true)
+                    .html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Moving...');
+
+                fetch('/api/excerpts/bulk_move', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(payload)
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.success) {
+                            throw new Error(data.message || 'Failed to move excerpts');
+                        }
+                        showAlert(data.message || 'Excerpts moved.', 'success');
+                        clearBulkSelection();
+                        loadExcerpts();
+                    })
+                    .catch(err => {
+                        showAlert(err.message || 'Failed to move excerpts', 'danger');
+                    })
+                    .finally(() => {
+                        $button.html(originalHtml);
+                        $button.prop('disabled', false);
+                        updateBulkMovePanel();
+                    });
+            });
+        }
+
+        $(document).on('input', '#mediaSearch', function () {
+            const searchTerm = $(this).val().toLowerCase();
+            const $select = $('#mediaSelect');
+            if (!searchTerm) {
+                $select.find('option').show();
+            } else {
+                $select.find('option').each(function () {
+                    const $option = $(this);
+                    const matches = ($option.data('search') || '').includes(searchTerm);
+                    $option.toggle(matches);
+                });
+            }
+            $select.trigger('change.select2');
+        });
+
+        if (typeof $.fn.select2 === 'function') {
+            $('#mediaSelect').select2({
+                placeholder: 'Select media files',
+                width: '100%',
+                closeOnSelect: false,
+                dropdownAutoWidth: true,
+                dropdownParent: $('#analysis'),
+                theme: 'bootstrap-5'
+            });
+
+            $('#codebookSelect').select2({
+                placeholder: 'Select a codebook',
+                width: '100%',
+                dropdownParent: $('#analysis'),
+                theme: 'bootstrap-5'
+            });
+        }
+
+        $(document).on('click', '.remove-collaborator', function () {
+            const button = $(this);
+            const userName = button.data('user-name');
+            if (!confirm(`Remove ${userName} from this project?`)) {
+                return;
+            }
+
             const listItem = button.closest('.collaborator-item');
-            const removeUrl = button.data('remove-url');
-
             $.ajax({
-                url: removeUrl,
+                url: button.data('remove-url'),
                 method: 'POST',
-                headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
+                headers: { 'X-CSRFToken': csrfToken },
                 success: function (response) {
                     if (response.success) {
                         listItem.fadeOut(300, function () {
                             $(this).remove();
-
                             if ($('.collaborator-item').length === 0) {
-                                const emptyState = '\
-                                    <div class="text-center py-4">\
-                                        <i class="fas fa-users fa-3x text-muted mb-3"></i>\
-                                        <p class="text-muted">No collaborators yet.</p>\
-                                        <p class="text-muted small">Add collaborators to work together on this project.</p>\
-                                    </div>';
-
-                                $('#collaboratorsList').remove();
-                                $('hr:last', '#collaborators .card-body').remove();
-                                $('.card-body > h6:contains("Collaborators")').remove();
-                                $('.card-body').append(emptyState);
+                                $('#collaboratorsList').html(`
+                                    <div class="text-center py-4">
+                                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted mb-1">No collaborators yet.</p>
+                                        <small class="text-muted">Add collaborators to work together on this project.</small>
+                                    </div>`);
                             }
                         });
-
-                        const alertHtml = '\
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">\
-                                <i class="fas fa-check-circle me-2"></i> ' + response.message + '\
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>\
-                            </div>';
-
-                        $('.card-body').prepend(alertHtml);
-
-                        setTimeout(() => {
-                            $('.alert').alert('close');
-                        }, 3000);
                     } else {
-                        alert('Failed to remove collaborator: ' + (response.message || 'Unknown error'));
+                        alert(response.message || 'Failed to remove collaborator');
                     }
                 },
                 error: function () {
                     alert('An error occurred while removing the collaborator.');
                 }
             });
-        }
-    });
+        });
 
-    // View/Edit handlers (stubs; your modals handle details)
-    $(document).on('click', '.view-excerpt', function () {
-        const excerptId = $(this).data('id');
-        console.log('View excerpt:', excerptId);
+        updateAnalyzeButtonState();
+        $('#mediaSelect, #codebookSelect').on('change', updateAnalyzeButtonState);
+        $('#analysisName').on('input', updateAnalyzeButtonState);
     });
-    $(document).on('click', '.edit-excerpt', function () {
-        const excerptId = $(this).data('id');
-        console.log('Edit excerpt:', excerptId);
-    });
-});
 </script>
 {% endblock %}

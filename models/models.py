@@ -35,6 +35,7 @@ class User(UserMixin, db.Model):
     research_notes = db.relationship('ResearchNote', back_populates='user', cascade='all, delete-orphan')
     media_items = db.relationship('Media', back_populates='user', cascade='all, delete-orphan')
     excerpts = db.relationship('Excerpt', back_populates='user', cascade='all, delete-orphan')
+    analysis_runs = db.relationship('AnalysisRun', back_populates='user', cascade='all, delete-orphan')
     # owned_projects is defined via backref in Project.owner
     # collaborative_projects is defined via backref in Project.collaborators
     
@@ -83,6 +84,7 @@ class Codebook(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
+    visibility = db.Column(db.String(20), nullable=False, default='private', index=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -93,6 +95,7 @@ class Codebook(db.Model):
     project = db.relationship('Project', back_populates='codebooks')
     codes = db.relationship('Code', back_populates='codebook', cascade='all, delete-orphan')
     excerpts = db.relationship('Excerpt', back_populates='codebook', cascade='all, delete-orphan')
+    analysis_runs = db.relationship('AnalysisRun', back_populates='codebook', cascade='all, delete-orphan')
 
 class Code(db.Model):
     __tablename__ = 'code'
@@ -151,6 +154,7 @@ class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
+    visibility = db.Column(db.String(20), nullable=False, default='private', index=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
     excerpts_count = db.Column(db.Integer, default=0)
@@ -162,6 +166,7 @@ class Project(db.Model):
     codebooks = db.relationship('Codebook', back_populates='project', cascade='all, delete-orphan')
     media_items = db.relationship('Media', back_populates='project', cascade='all, delete-orphan')
     excerpts = db.relationship('Excerpt', back_populates='project', cascade='all, delete-orphan')
+    analysis_runs = db.relationship('AnalysisRun', back_populates='project', cascade='all, delete-orphan')
     collaborators = db.relationship(
         'User',
         secondary=project_collaborators,
@@ -237,10 +242,12 @@ class Excerpt(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey('project.id', ondelete='CASCADE'), nullable=False, index=True)
     media_id = db.Column(db.Integer, db.ForeignKey('media.id', ondelete='CASCADE'), nullable=False, index=True)
     codebook_id = db.Column(db.Integer, db.ForeignKey('codebook.id', ondelete='CASCADE'), nullable=True, index=True)
+    analysis_id = db.Column(db.Integer, db.ForeignKey('analysis_run.id', ondelete='SET NULL'), nullable=True, index=True)
     code = db.Column(db.String(500), nullable=True)
     subcode = db.Column(db.String(500), nullable=True)
     excerpt = db.Column(db.Text, nullable=False)
     explanation = db.Column(db.Text, nullable=True)
+    visibility = db.Column(db.String(20), nullable=False, default='private', index=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     
@@ -249,9 +256,33 @@ class Excerpt(db.Model):
     media = db.relationship('Media', back_populates='excerpts')
     codebook = db.relationship('Codebook', back_populates='excerpts')
     user = db.relationship('User', back_populates='excerpts')
+    analysis = db.relationship('AnalysisRun', back_populates='excerpts')
     
     def __repr__(self):
         return f'<Excerpt {self.id} - {self.excerpt[:50]}...>'
+
+
+class AnalysisRun(db.Model):
+    __tablename__ = 'analysis_run'
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id', ondelete='CASCADE'), nullable=False, index=True)
+    codebook_id = db.Column(db.Integer, db.ForeignKey('codebook.id', ondelete='SET NULL'), nullable=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True, index=True)
+    name = db.Column(db.String(200), nullable=False)
+    notes = db.Column(db.Text)
+    media_snapshot = db.Column(db.JSON, nullable=True)
+    visibility = db.Column(db.String(20), nullable=False, default='private', index=True)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
+    project = db.relationship('Project', back_populates='analysis_runs')
+    codebook = db.relationship('Codebook', back_populates='analysis_runs')
+    user = db.relationship('User', back_populates='analysis_runs')
+    excerpts = db.relationship('Excerpt', back_populates='analysis')
+
+    def __repr__(self):
+        return f'<AnalysisRun {self.id} project={self.project_id}>'
 
 class Descriptor(db.Model):
     id = db.Column(db.Integer, primary_key=True)

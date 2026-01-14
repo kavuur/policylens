@@ -10,6 +10,10 @@ import unicodedata
 import logging
 import sys
 import uuid
+import csv
+import io
+import textwrap
+from xml.sax.saxutils import escape as xml_escape
 
 import requests
 import pandas as pd
@@ -44,7 +48,7 @@ from flask_wtf.csrf import CSRFProtect
 # --- Models / Services ---
 from models.models import (
     db, User, PolicyDocument, Codebook, ResearchNote, Project,
-    Media, Descriptor, Code, SubCode, SubSubCode, Excerpt
+    Media, Descriptor, Code, SubCode, SubSubCode, Excerpt, AnalysisRun
 )
 from forms import (
     ProjectForm, ProfileUpdateForm, PasswordUpdateForm,
@@ -294,6 +298,253 @@ def can_view_all():
 def can_edit_all():
     """Check if current user can edit all content (admin but not view-only)"""
     return current_user.is_authenticated and current_user.is_admin and not current_user.is_view_only_admin
+
+
+def user_can_manage_project(project: Project) -> bool:
+    if not current_user.is_authenticated:
+        return False
+    if current_user.is_admin and not current_user.is_view_only_admin:
+        return True
+    if project.owner_id == current_user.id:
+        return True
+    return any(collaborator.id == current_user.id for collaborator in project.collaborators)
+
+
+def user_can_view_project(project: Project) -> bool:
+    if not project or not current_user.is_authenticated:
+        return False
+    if can_view_all():
+        return True
+    if project.owner_id == current_user.id:
+        return True
+    return any(collaborator.id == current_user.id for collaborator in project.collaborators)
+
+
+def serialize_analysis_run(analysis: AnalysisRun) -> dict:
+    return {
+        'id': analysis.id,
+        'project_id': analysis.project_id,
+        'project_name': analysis.project.name if analysis.project else None,
+        'codebook_id': analysis.codebook_id,
+        'codebook_name': analysis.codebook.name if analysis.codebook else None,
+        'name': analysis.name,
+        'notes': analysis.notes,
+        'created_at': analysis.created_at.isoformat() if analysis.created_at else None,
+        'updated_at': analysis.updated_at.isoformat() if analysis.updated_at else None,
+        'excerpt_count': len(analysis.excerpts),
+        'visibility': analysis.visibility,
+    }
+
+
+EXCERPT_EXPORT_COLUMNS = [
+    ('ID', 'id'),
+    ('Analysis', 'analysis'),
+    ('Project', 'project'),
+    ('Media', 'media'),
+    ('Codebook', 'codebook'),
+    ('Code', 'code'),
+    ('Subcode', 'subcode'),
+    ('Excerpt', 'excerpt'),
+    ('Explanation', 'explanation'),
+    ('User', 'user'),
+    ('Created', 'created_at'),
+]
+
+EXCERPT_EXPORT_FORMATS = {
+    'csv': 'csv',
+    'excel': 'xlsx',
+    'word': 'docx',
+    'pdf': 'pdf',
+}
+
+
+def _prepare_excerpt_export_payload(project: Project, analysis_run: AnalysisRun | None) -> dict:
+    if not project:
+        return {'rows': []}
+
+    query = (
+        db.session.query(
+            Excerpt,
+            Media.filename.label('media_filename'),
+            User.name.label('user_name'),
+            User.email.label('user_email'),
+            Codebook.name.label('codebook_name')
+        )
+        .outerjoin(Media, Excerpt.media_id == Media.id)
+        .outerjoin(User, Excerpt.user_id == User.id)
+        .outerjoin(Codebook, Excerpt.codebook_id == Codebook.id)
+        .filter(Excerpt.project_id == project.id)
+    )
+
+    if analysis_run:
+        query = query.filter(Excerpt.analysis_id == analysis_run.id)
+        analysis_name = analysis_run.name
+        notes = analysis_run.notes or ''
+    else:
+        query = query.filter(Excerpt.analysis_id.is_(None))
+        analysis_name = 'Manual Excerpts'
+        notes = ''
+
+    rows = []
+    for ex, media_filename, user_name, user_email, codebook_name in query.order_by(Excerpt.created_at.asc()).all():
+        rows.append({
+            'id': str(ex.id),
+            'analysis': analysis_name,
+            'project': project.name,
+            'media': media_filename or 'N/A',
+            'codebook': codebook_name or 'N/A',
+            'code': ex.code or 'N/A',
+            'subcode': ex.subcode or 'N/A',
+            'excerpt': ex.excerpt or '',
+            'explanation': ex.explanation or '',
+            'user': user_name or user_email or 'Unknown',
+            'created_at': ex.created_at.strftime('%Y-%m-%d %H:%M') if ex.created_at else ''
+        })
+
+    return {
+        'project_name': project.name,
+        'analysis_name': analysis_name,
+        'analysis_notes': notes,
+        'rows': rows
+    }
+
+
+def _build_excerpt_export_filename(project_name: str, analysis_name: str, extension: str) -> str:
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    base = f"{project_name}-{analysis_name}-{timestamp}".strip('-')
+    safe = secure_filename(base) or f"analysis_export_{timestamp}"
+    return f"{safe}.{extension}"
+
+
+def _export_rows_to_csv(payload: dict, download_name: str):
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([label for label, _ in EXCERPT_EXPORT_COLUMNS])
+    for row in payload['rows']:
+        writer.writerow([row.get(key, '') for _, key in EXCERPT_EXPORT_COLUMNS])
+    memory_file = BytesIO()
+    memory_file.write(output.getvalue().encode('utf-8-sig'))
+    memory_file.seek(0)
+    return send_file(
+        memory_file,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=download_name
+    )
+
+
+def _export_rows_to_excel(payload: dict, download_name: str):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Excerpts'
+
+    ws['A1'] = 'Project'
+    ws['B1'] = payload.get('project_name')
+    ws['A2'] = 'Analysis'
+    ws['B2'] = payload.get('analysis_name')
+    ws['A3'] = 'Notes'
+    ws['B3'] = payload.get('analysis_notes') or '—'
+
+    for cell in ('A1', 'A2', 'A3'):
+        ws[cell].font = Font(bold=True)
+
+    start_row = 5
+    for idx, (label, _) in enumerate(EXCERPT_EXPORT_COLUMNS, start=1):
+        cell = ws.cell(row=start_row, column=idx, value=label)
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill(start_color='E5E7EB', end_color='E5E7EB', fill_type='solid')
+        cell.alignment = Alignment(horizontal='center')
+
+    for row_idx, row in enumerate(payload['rows'], start=start_row + 1):
+        for col_idx, (_, key) in enumerate(EXCERPT_EXPORT_COLUMNS, start=1):
+            ws.cell(row=row_idx, column=col_idx, value=row.get(key, ''))
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return send_file(
+        buffer,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=download_name
+    )
+
+
+def _export_rows_to_docx(payload: dict, download_name: str):
+    document = Document()
+    document.add_heading(f"{payload.get('project_name')} · {payload.get('analysis_name')}", level=1)
+    notes_text = payload.get('analysis_notes') or ''
+    if notes_text:
+        document.add_paragraph(f"Notes: {notes_text}")
+
+    table = document.add_table(rows=1, cols=len(EXCERPT_EXPORT_COLUMNS))
+    header_cells = table.rows[0].cells
+    for idx, (label, _) in enumerate(EXCERPT_EXPORT_COLUMNS):
+        header_cells[idx].text = label
+        for paragraph in header_cells[idx].paragraphs:
+            for run in paragraph.runs:
+                run.font.bold = True
+
+    for row in payload['rows']:
+        cells = table.add_row().cells
+        for idx, (_, key) in enumerate(EXCERPT_EXPORT_COLUMNS):
+            cells[idx].text = (row.get(key, '') or '')
+
+    buffer = BytesIO()
+    document.save(buffer)
+    buffer.seek(0)
+    return send_file(
+        buffer,
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        as_attachment=True,
+        download_name=download_name
+    )
+
+
+def _escape_paragraph_text(value: str) -> str:
+    return xml_escape(value or '').replace('\n', '<br/>')
+
+
+def _export_rows_to_pdf(payload: dict, download_name: str):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
+    styles = getSampleStyleSheet()
+    title = Paragraph(f"{xml_escape(payload.get('project_name') or '')} · {xml_escape(payload.get('analysis_name') or '')}", styles['Heading1'])
+    story = [title, Spacer(1, 0.2 * inch)]
+
+    if payload.get('analysis_notes'):
+        story.append(Paragraph(f"<b>Notes:</b> {_escape_paragraph_text(payload['analysis_notes'])}", styles['Normal']))
+        story.append(Spacer(1, 0.15 * inch))
+
+    body_style = styles['BodyText']
+    for row in payload['rows']:
+        heading_text = (
+            f"<b>Excerpt #{row.get('id', '')}</b> · "
+            f"Media: {xml_escape(row.get('media', '') or '')} · "
+            f"Code: {xml_escape(row.get('code', '') or '')} / {xml_escape(row.get('subcode', '') or '')}"
+        )
+        story.append(Paragraph(heading_text, styles['Heading4']))
+        excerpt_text = _escape_paragraph_text(textwrap.shorten(row.get('excerpt', '') or '', width=2000, placeholder='…'))
+        if excerpt_text:
+            story.append(Paragraph(f"<b>Excerpt:</b> {excerpt_text}", body_style))
+        explanation_text = _escape_paragraph_text(textwrap.shorten(row.get('explanation', '') or '', width=2000, placeholder='…'))
+        if explanation_text:
+            story.append(Paragraph(f"<b>Explanation:</b> {explanation_text}", body_style))
+        meta = (
+            f"<b>User:</b> {xml_escape(row.get('user', '') or '')} · "
+            f"<b>Created:</b> {xml_escape(row.get('created_at', '') or '')}"
+        )
+        story.append(Paragraph(meta, body_style))
+        story.append(Spacer(1, 0.2 * inch))
+
+    doc.build(story)
+    buffer.seek(0)
+    return send_file(
+        buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=download_name
+    )
 
 def media_allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
@@ -895,7 +1146,12 @@ def create_project():
         return redirect(url_for('list_projects'))
     form = ProjectForm()
     if form.validate_on_submit():
-        project = Project(name=form.name.data, description=form.description.data, owner_id=current_user.id)
+        project = Project(
+            name=form.name.data,
+            description=form.description.data,
+            owner_id=current_user.id,
+            visibility=form.visibility.data
+        )
         db.session.add(project); db.session.commit()
         flash('Project created successfully!', 'success')
         return redirect(url_for('list_projects'))
@@ -918,8 +1174,14 @@ def save_project(project_id=None):
                     return redirect(url_for('list_projects'))
                 project.name = form.name.data
                 project.description = form.description.data
+                project.visibility = form.visibility.data
             else:
-                project = Project(name=form.name.data, description=form.description.data, owner_id=current_user.id)
+                project = Project(
+                    name=form.name.data,
+                    description=form.description.data,
+                    owner_id=current_user.id,
+                    visibility=form.visibility.data
+                )
                 db.session.add(project)
             db.session.commit()
             flash('Project saved successfully!', 'success')
@@ -1583,7 +1845,8 @@ def create_codebook():
                 name=form.name.data,
                 description=form.description.data,
                 user_id=current_user.id,
-                project_id=form.project_id.data if form.project_id.data else None
+                project_id=form.project_id.data if form.project_id.data else None,
+                visibility=form.visibility.data
             )
             db.session.add(codebook); db.session.commit()
             flash('Codebook created successfully!', 'success')
@@ -1609,6 +1872,7 @@ def edit_codebook(codebook_id):
             codebook.name = form.name.data
             codebook.description = form.description.data
             codebook.project_id = form.project_id.data if form.project_id.data else None
+            codebook.visibility = form.visibility.data
             db.session.commit()
             flash('Codebook updated successfully!', 'success')
             return redirect(url_for('list_codebooks'))
@@ -1770,9 +2034,11 @@ def get_excerpt(excerpt_id):
         result = db.session.query(
             Excerpt,
             Media.filename.label('media_name'),
-            User.username.label('user_name')
+            User.username.label('user_name'),
+            AnalysisRun.name.label('analysis_name')
         ).outerjoin(Media, Excerpt.media_id == Media.id)\
          .outerjoin(User, Excerpt.user_id == User.id)\
+         .outerjoin(AnalysisRun, Excerpt.analysis_id == AnalysisRun.id)\
          .filter(Excerpt.id == excerpt_id).first()
         if not result or not result.Excerpt:
             return jsonify({'success': False, 'message': 'Excerpt not found'}), 404
@@ -1791,6 +2057,8 @@ def get_excerpt(excerpt_id):
             'explanation': result.Excerpt.explanation,
             'user_id': result.Excerpt.user_id,
             'user_name': result.user_name,
+            'analysis_id': result.Excerpt.analysis_id,
+            'analysis_name': result.analysis_name,
             'created_at': result.Excerpt.created_at.isoformat() if result.Excerpt.created_at else None
         }
         return jsonify({'success': True, 'excerpt': data})
@@ -1827,8 +2095,18 @@ def get_excerpts():
 
         # Build query based on scope
         q = (
-            db.session.query(Excerpt, Media.filename, Media.id.label('media_id'))
+            db.session.query(
+                Excerpt,
+                Media.filename,
+                Media.id.label('media_id'),
+                AnalysisRun.id.label('analysis_id'),
+                AnalysisRun.name.label('analysis_name'),
+                AnalysisRun.created_at.label('analysis_created_at'),
+                AnalysisRun.visibility.label('analysis_visibility'),
+                AnalysisRun.notes.label('analysis_notes')
+            )
             .outerjoin(Media, Excerpt.media_id == Media.id)
+            .outerjoin(AnalysisRun, Excerpt.analysis_id == AnalysisRun.id)
             .filter(Excerpt.project_id == project_id)
         )
         
@@ -1842,22 +2120,73 @@ def get_excerpts():
                 q = q.filter(Excerpt.user_id.in_(team_ids))
             # 'all' scope shows everything (no additional filter)
         
-        q = q.order_by(Excerpt.created_at.desc())
-        rows = q.all()
+        rows = q.order_by(
+            AnalysisRun.created_at.desc().nullslast(),
+            Excerpt.created_at.desc()
+        ).all()
         app.logger.info(f"[get_excerpts] fetched={len(rows)}")
 
-        excerpts_data = [{
-            'id': ex.id,
-            'media_id': media_id,
-            'media_filename': media_filename or 'N/A',
-            'code': ex.code or 'N/A',
-            'subcode': ex.subcode or 'N/A',
-            'excerpt': ex.excerpt or 'N/A',
-            'explanation': ex.explanation or 'N/A',
-            'created_at': ex.created_at.isoformat() if ex.created_at else None
-        } for ex, media_filename, media_id in rows]
+        analyses = {}
+        manual_excerpts = []
+        total = 0
 
-        return jsonify({'success': True, 'excerpts': excerpts_data})
+        for ex, media_filename, media_id, analysis_id, analysis_name, analysis_created_at, analysis_visibility, analysis_notes in rows:
+            total += 1
+            item = {
+                'id': ex.id,
+                'analysis_id': analysis_id,
+                'analysis_name': analysis_name,
+                'media_id': media_id,
+                'media_filename': media_filename or 'N/A',
+                'code': ex.code or 'N/A',
+                'subcode': ex.subcode or 'N/A',
+                'excerpt': ex.excerpt or 'N/A',
+                'explanation': ex.explanation or 'N/A',
+                'created_at': ex.created_at.isoformat() if ex.created_at else None
+            }
+
+            if analysis_id:
+                group = analyses.setdefault(analysis_id, {
+                    'analysis_id': analysis_id,
+                    'analysis_name': analysis_name or 'Analysis',
+                    'created_at': analysis_created_at.isoformat() if analysis_created_at else None,
+                    'visibility': analysis_visibility,
+                    'notes': analysis_notes,
+                    'excerpt_count': 0,
+                    'excerpts': []
+                })
+                group['excerpts'].append(item)
+                group['excerpt_count'] += 1
+            else:
+                manual_excerpts.append(item)
+
+        manual_excerpts.sort(key=lambda x: x['created_at'] or '', reverse=True)
+        sorted_groups = sorted(
+            analyses.values(),
+            key=lambda g: g['created_at'] or '',
+            reverse=True
+        )
+
+        analysis_options = []
+        seen_analysis_ids = set()
+        for group in sorted_groups:
+            analysis_id = group.get('analysis_id')
+            if not analysis_id or analysis_id in seen_analysis_ids:
+                continue
+            seen_analysis_ids.add(analysis_id)
+            analysis_options.append({
+                'id': analysis_id,
+                'name': group.get('analysis_name') or 'Analysis Run',
+                'notes': group.get('notes') or ''
+            })
+
+        return jsonify({
+            'success': True,
+            'analyses': sorted_groups,
+            'manual_excerpts': manual_excerpts,
+            'total_count': total,
+            'analysis_options': analysis_options
+        })
     except Exception as e:
         app.logger.exception(f"[get_excerpts] failure: {e}")
         return jsonify({'error': f'Failed to fetch excerpts: {str(e)}'}), 500
@@ -1874,6 +2203,7 @@ def save_excerpt():
         data = request.get_json() or {}
         project_id = data.get('project_id')
         excerpts = data.get('excerpts', [])
+        batch_analysis_id = data.get('analysis_id')
 
         app.logger.info(f"[save_excerpt] user={current_user.id} project={project_id} batch={len(excerpts)}")
 
@@ -1889,6 +2219,13 @@ def save_excerpt():
             app.logger.warning(f"[save_excerpt] unauthorized user={current_user.id} project={project_id}")
             return jsonify({'message': 'Unauthorized to save excerpts for this project', 'success': False}), 403
 
+        analysis = None
+        if batch_analysis_id:
+            analysis = db.session.get(AnalysisRun, batch_analysis_id)
+            if not analysis or analysis.project_id != project_id:
+                app.logger.warning(f"[save_excerpt] analysis run invalid for project: {batch_analysis_id}")
+                return jsonify({'message': 'Invalid analysis run reference', 'success': False}), 400
+
         excerpt_ids = []
         for excerpt in excerpts:
             media_id = excerpt.get('media_id')
@@ -1897,6 +2234,7 @@ def save_excerpt():
             subcode = excerpt.get('subcode')
             excerpt_text = excerpt.get('excerpt')  # Corrected key
             explanation = excerpt.get('explanation')
+            analysis_id = excerpt.get('analysis_id', batch_analysis_id)
 
             if not all([media_id, codebook_id, code, excerpt_text]):
                 app.logger.warning(f"[save_excerpt] invalid excerpt: media_id={media_id} codebook_id={codebook_id} code={code}")
@@ -1911,10 +2249,17 @@ def save_excerpt():
                 app.logger.warning(f"[save_excerpt] media_id={media_id} or codebook_id={codebook_id} not in project={project_id}")
                 continue
 
+            if analysis_id and (not analysis or analysis.id != analysis_id):
+                analysis = db.session.get(AnalysisRun, analysis_id)
+                if not analysis or analysis.project_id != project_id:
+                    app.logger.warning(f"[save_excerpt] analysis_id={analysis_id} not valid for project={project_id}")
+                    continue
+
             new_excerpt = Excerpt(
                 project_id=project_id,
                 media_id=media_id,
                 codebook_id=codebook_id,
+                analysis_id=analysis_id,
                 code=code,
                 subcode=subcode,
                 excerpt=excerpt_text,
@@ -1940,6 +2285,340 @@ def save_excerpt():
         return jsonify({'message': f'Failed to save excerpts: {str(e)}', 'success': False}), 500
 
 
+# -----------------------------------------------------------------------------
+# Excerpt CRUD APIs (manual create/update)
+# -----------------------------------------------------------------------------
+@app.route('/api/excerpts', methods=['POST'])
+@login_required
+def create_project_excerpt():
+    data = request.get_json() or {}
+    project_id = data.get('project_id')
+    media_id = data.get('media_id')
+    codebook_id = data.get('codebook_id')
+    code = (data.get('code') or '').strip()
+    subcode = (data.get('subcode') or '').strip() or None
+    excerpt_text = (data.get('excerpt') or '').strip()
+    explanation = (data.get('explanation') or '').strip() or None
+    analysis_id = data.get('analysis_id')
+    analysis_name = (data.get('analysis_name') or '').strip()
+
+    if analysis_id not in (None, ''):
+        try:
+            analysis_id = int(analysis_id)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': 'Invalid analysis reference'}), 400
+    else:
+        analysis_id = None
+
+    if not project_id or not media_id or not codebook_id or not excerpt_text:
+        return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+
+    project = db.session.get(Project, project_id)
+    if not project:
+        return jsonify({'success': False, 'message': 'Project not found'}), 404
+    if project.owner_id != current_user.id and current_user not in project.collaborators and not can_view_all():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    media = db.session.get(Media, media_id)
+    codebook = db.session.get(Codebook, codebook_id)
+    if not media or not codebook:
+        return jsonify({'success': False, 'message': 'Media or codebook not found'}), 404
+    if media.project_id != project_id or codebook.project_id != project_id:
+        return jsonify({'success': False, 'message': 'Media and codebook must belong to the same project'}), 400
+
+    analysis = None
+    if analysis_id:
+        analysis = db.session.get(AnalysisRun, analysis_id)
+        if not analysis or analysis.project_id != project_id:
+            return jsonify({'success': False, 'message': 'Invalid analysis reference'}), 400
+    elif analysis_name:
+        analysis = AnalysisRun.query.filter(
+            AnalysisRun.project_id == project_id,
+            db.func.lower(AnalysisRun.name) == analysis_name.lower()
+        ).first()
+        if not analysis:
+            analysis = AnalysisRun(
+                project_id=project_id,
+                codebook_id=codebook_id,
+                user_id=current_user.id,
+                name=analysis_name,
+                visibility=project.visibility
+            )
+            db.session.add(analysis)
+            db.session.flush()
+
+    new_excerpt = Excerpt(
+        project_id=project_id,
+        media_id=media_id,
+        codebook_id=codebook_id,
+        analysis_id=analysis.id if analysis else None,
+        code=code or None,
+        subcode=subcode,
+        excerpt=excerpt_text,
+        explanation=explanation,
+        user_id=current_user.id,
+        visibility=project.visibility
+    )
+    db.session.add(new_excerpt)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': 'Excerpt created',
+        'excerpt_id': new_excerpt.id,
+        'analysis_id': analysis.id if analysis else None,
+        'analysis_name': analysis.name if analysis else None
+    })
+
+
+@app.route('/api/excerpts/<int:excerpt_id>', methods=['PUT'])
+@login_required
+def update_project_excerpt(excerpt_id):
+    data = request.get_json() or {}
+    excerpt = Excerpt.query.get_or_404(excerpt_id)
+    project = excerpt.project
+
+    if project.owner_id != current_user.id and current_user not in project.collaborators and not can_view_all():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    media_id = data.get('media_id', excerpt.media_id)
+    codebook_id = data.get('codebook_id', excerpt.codebook_id)
+    code = (data.get('code') or excerpt.code or '').strip()
+    subcode = (data.get('subcode') or excerpt.subcode or '').strip() or None
+    excerpt_text = (data.get('excerpt') or excerpt.excerpt or '').strip()
+    explanation = (data.get('explanation') or (excerpt.explanation or '')).strip() or None
+    analysis_name_input = (data.get('analysis_name') or '').strip()
+    has_analysis_id = 'analysis_id' in data
+    raw_analysis_id = data.get('analysis_id') if has_analysis_id else excerpt.analysis_id
+
+    if raw_analysis_id in ('', None):
+        raw_analysis_id = None
+    elif not isinstance(raw_analysis_id, int):
+        try:
+            raw_analysis_id = int(raw_analysis_id)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': 'Invalid analysis reference'}), 400
+
+    if not media_id or not codebook_id or not excerpt_text:
+        return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+
+    media = db.session.get(Media, media_id)
+    codebook = db.session.get(Codebook, codebook_id)
+    if not media or not codebook:
+        return jsonify({'success': False, 'message': 'Media or codebook not found'}), 404
+    if media.project_id != project.id or codebook.project_id != project.id:
+        return jsonify({'success': False, 'message': 'Media and codebook must belong to the same project'}), 400
+
+    analysis = None
+    if raw_analysis_id:
+        analysis = db.session.get(AnalysisRun, raw_analysis_id)
+        if not analysis or analysis.project_id != project.id:
+            return jsonify({'success': False, 'message': 'Invalid analysis reference'}), 400
+    elif analysis_name_input:
+        analysis = AnalysisRun.query.filter(
+            AnalysisRun.project_id == project.id,
+            db.func.lower(AnalysisRun.name) == analysis_name_input.lower()
+        ).first()
+        if not analysis:
+            analysis = AnalysisRun(
+                project_id=project.id,
+                codebook_id=codebook_id,
+                user_id=current_user.id,
+                name=analysis_name_input,
+                visibility=project.visibility
+            )
+            db.session.add(analysis)
+            db.session.flush()
+    else:
+        analysis = excerpt.analysis if not has_analysis_id else None
+
+    excerpt.media_id = media_id
+    excerpt.codebook_id = codebook_id
+    excerpt.code = code or None
+    excerpt.subcode = subcode
+    excerpt.excerpt = excerpt_text
+    excerpt.explanation = explanation
+    excerpt.analysis_id = analysis.id if analysis else (None if has_analysis_id else excerpt.analysis_id)
+
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Excerpt updated'})
+
+
+@app.route('/api/excerpts/<int:excerpt_id>', methods=['DELETE'])
+@login_required
+def delete_project_excerpt(excerpt_id):
+    excerpt = Excerpt.query.get_or_404(excerpt_id)
+    project = excerpt.project
+
+    if project.owner_id != current_user.id and current_user not in project.collaborators and not can_view_all():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    db.session.delete(excerpt)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Excerpt deleted'})
+
+
+@app.route('/api/excerpts/bulk_move', methods=['POST'])
+@login_required
+def bulk_move_excerpts():
+    data = request.get_json() or {}
+    excerpt_ids = data.get('excerpt_ids') or []
+    target_analysis_id = data.get('target_analysis_id')
+    target_analysis_name = (data.get('target_analysis_name') or '').strip()
+
+    if not excerpt_ids:
+        return jsonify({'success': False, 'message': 'No excerpts selected'}), 400
+
+    try:
+        clean_ids = [int(eid) for eid in excerpt_ids]
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Invalid excerpt identifiers'}), 400
+
+    excerpts = Excerpt.query.filter(Excerpt.id.in_(clean_ids)).all()
+    if not excerpts:
+        return jsonify({'success': False, 'message': 'No matching excerpts found'}), 404
+
+    project_ids = {ex.project_id for ex in excerpts}
+    if len(project_ids) != 1:
+        return jsonify({'success': False, 'message': 'Excerpts must belong to the same project'}), 400
+
+    project = Project.query.get(project_ids.pop())
+    if not project:
+        return jsonify({'success': False, 'message': 'Project not found'}), 404
+
+    if project.owner_id != current_user.id and current_user not in project.collaborators and not can_view_all():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    analysis = None
+    if target_analysis_id not in (None, '', '__manual__'):
+        try:
+            target_analysis_id = int(target_analysis_id)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': 'Invalid analysis reference'}), 400
+        analysis = AnalysisRun.query.get(target_analysis_id)
+        if not analysis or analysis.project_id != project.id:
+            return jsonify({'success': False, 'message': 'Analysis run not found'}), 404
+    elif target_analysis_name:
+        analysis = AnalysisRun.query.filter(
+            AnalysisRun.project_id == project.id,
+            db.func.lower(AnalysisRun.name) == target_analysis_name.lower()
+        ).first()
+        if not analysis:
+            return jsonify({'success': False, 'message': 'Analysis run not found'}), 404
+
+    for excerpt in excerpts:
+        excerpt.analysis_id = analysis.id if analysis else None
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f'Moved {len(excerpts)} excerpt(s).',
+        'analysis_id': analysis.id if analysis else None,
+        'analysis_name': analysis.name if analysis else 'Manual'
+    })
+
+
+@app.route('/api/analysis_runs/<int:analysis_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def manage_analysis_run(analysis_id):
+    analysis = AnalysisRun.query.get_or_404(analysis_id)
+    project = analysis.project
+
+    if request.method == 'GET':
+        if not user_can_manage_project(project):
+            flash('You do not have permission to view this analysis run.', 'danger')
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+        return jsonify({'success': True, 'analysis_run': serialize_analysis_run(analysis)})
+
+    if not user_can_manage_project(project):
+        flash('You do not have permission to modify this analysis run.', 'danger')
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    if request.method == 'PUT':
+        data = request.get_json() or {}
+        name = (data.get('name') or '').strip()
+        notes = (data.get('notes') or '').strip()
+
+        if not name:
+            return jsonify({'success': False, 'message': 'Analysis name is required'}), 400
+
+        analysis.name = name
+        analysis.notes = notes or None
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Analysis updated successfully',
+            'analysis_run': serialize_analysis_run(analysis)
+        })
+
+    if request.method == 'DELETE':
+        moved_count = Excerpt.query.filter_by(analysis_id=analysis.id).update({'analysis_id': None}, synchronize_session=False)
+        db.session.delete(analysis)
+        db.session.commit()
+        flash('Analysis deleted. Associated excerpts were moved to Manual Excerpts.', 'warning')
+        return jsonify({
+            'success': True,
+            'message': f'Analysis deleted. {moved_count} excerpt(s) moved to Manual Excerpts.',
+            'moved_count': moved_count
+        })
+
+
+@app.route('/api/analysis_runs/<int:analysis_id>/export', methods=['GET'])
+@login_required
+def export_analysis_run(analysis_id):
+    fmt = (request.args.get('format') or 'csv').lower()
+    if fmt not in EXCERPT_EXPORT_FORMATS:
+        return jsonify({'success': False, 'message': 'Unsupported export format'}), 400
+
+    analysis = AnalysisRun.query.get_or_404(analysis_id)
+    project = analysis.project
+    if not user_can_view_project(project):
+        flash('You do not have permission to export this analysis run.', 'danger')
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    payload = _prepare_excerpt_export_payload(project, analysis)
+    if not payload.get('rows'):
+        return jsonify({'success': False, 'message': 'No excerpts available for export'}), 404
+
+    extension = EXCERPT_EXPORT_FORMATS[fmt]
+    filename = _build_excerpt_export_filename(project.name, analysis.name, extension)
+    exporters = {
+        'csv': _export_rows_to_csv,
+        'excel': _export_rows_to_excel,
+        'word': _export_rows_to_docx,
+        'pdf': _export_rows_to_pdf,
+    }
+    return exporters[fmt](payload, filename)
+
+
+@app.route('/projects/<int:project_id>/manual_excerpts/export', methods=['GET'])
+@login_required
+def export_manual_excerpts(project_id):
+    fmt = (request.args.get('format') or 'csv').lower()
+    if fmt not in EXCERPT_EXPORT_FORMATS:
+        return jsonify({'success': False, 'message': 'Unsupported export format'}), 400
+
+    project = Project.query.get_or_404(project_id)
+    if not user_can_view_project(project):
+        flash('You do not have permission to export manual excerpts for this project.', 'danger')
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    payload = _prepare_excerpt_export_payload(project, None)
+    if not payload.get('rows'):
+        return jsonify({'success': False, 'message': 'No manual excerpts available for export'}), 404
+
+    extension = EXCERPT_EXPORT_FORMATS[fmt]
+    filename = _build_excerpt_export_filename(project.name, 'manual-excerpts', extension)
+    exporters = {
+        'csv': _export_rows_to_csv,
+        'excel': _export_rows_to_excel,
+        'word': _export_rows_to_docx,
+        'pdf': _export_rows_to_pdf,
+    }
+    return exporters[fmt](payload, filename)
+
 # app.py (add after existing routes)
 @app.route('/analyze_project', methods=['POST'])
 @login_required
@@ -1949,6 +2628,8 @@ def analyze_project():
         media_ids = data.get('media_ids', [])
         codebook_id = data.get('codebook_id')
         project_id = data.get('project_id')
+        analysis_name = (data.get('analysis_name') or '').strip()
+        analysis_notes = (data.get('analysis_notes') or '').strip()
 
         app.logger.info(
             f"[analyze] user={current_user.id} project={project_id} "
@@ -1960,6 +2641,10 @@ def analyze_project():
             return jsonify({
                 'error': 'Missing required fields: media_ids, codebook_id, or project_id'
             }), 400
+
+        if not analysis_name:
+            app.logger.warning("[analyze] missing analysis_name")
+            return jsonify({'error': 'Analysis name is required'}), 400
 
         project = db.session.get(Project, project_id)
         if not project:
@@ -2036,9 +2721,29 @@ def analyze_project():
         )
 
         saved_excerpt_ids = []
+        analysis_run = None
+        analysis_id = None
         if valid_excerpts:
+            media_snapshot = [
+                {'id': m.id, 'filename': m.filename}
+                for m in valid_media
+            ]
+            analysis_run = AnalysisRun(
+                project_id=project_id,
+                codebook_id=codebook_id,
+                user_id=current_user.id,
+                name=analysis_name,
+                notes=analysis_notes or None,
+                media_snapshot=media_snapshot,
+                visibility=project.visibility
+            )
+            db.session.add(analysis_run)
+            db.session.commit()
+            analysis_id = analysis_run.id
+
             payload = {
                 'project_id': project_id,
+                'analysis_id': analysis_id,
                 'excerpts': valid_excerpts,
             }
             app.logger.info(
@@ -2057,6 +2762,10 @@ def analyze_project():
                     "[analyze] save failed status=%s body_json=%r body_text=%r",
                     save_r.status_code, body_json, body_text
                 )
+
+                if analysis_run:
+                    db.session.delete(analysis_run)
+                    db.session.commit()
 
                 message = None
                 if isinstance(body_json, dict):
@@ -2084,6 +2793,8 @@ def analyze_project():
             'excerpts': excerpts,
             'explanation': explanation,
             'saved_excerpt_ids': saved_excerpt_ids,
+            'analysis_run_id': analysis_id,
+            'analysis_name': analysis_name if saved_excerpt_ids else None
         })
 
     except Exception as e:

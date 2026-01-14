@@ -1,5 +1,8 @@
 // Handle Add Excerpt button click
 document.addEventListener('DOMContentLoaded', function() {
+    if (window.PolicyLensExcerptsOverride) {
+        return;
+    }
     const addExcerptBtn = document.getElementById('addExcerptBtn');
     const addFirstExcerptBtn = document.getElementById('addFirstExcerptBtn');
     const excerptModal = new bootstrap.Modal(document.getElementById('excerptModal'));

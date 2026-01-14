@@ -43,6 +43,16 @@
                                 </div>
                             {% endif %}
                         </div>
+
+                        <div class="mb-4">
+                            {{ form.visibility.label(class="form-label") }}
+                            {{ form.visibility(class="form-select" + (" is-invalid" if form.visibility.errors else "")) }}
+                            {% if form.visibility.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.visibility.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
                         
                         <div class="d-flex justify-content-between">
                             <a href="{{ url_for('list_codebooks') }}" class="btn btn-outline-secondary">

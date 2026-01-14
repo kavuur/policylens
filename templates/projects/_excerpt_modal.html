@@ -1,16 +1,38 @@
 <!-- Excerpt Modal -->
 <div class="modal fade" id="excerptModal" tabindex="-1" aria-labelledby="excerptModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="excerptModalLabel">Add New Excerpt</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="excerptForm">
-                <div class="modal-body">
+                <div class="modal-body overflow-auto" style="max-height:70vh;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     <input type="hidden" id="excerptId" name="excerpt_id">
                     <input type="hidden" name="project_id" value="{{ project.id }}">
+                    <input type="hidden" id="excerptAnalysisId" name="analysis_id">
+
+                    <div class="mb-3">
+                        <label for="excerptAnalysisName" class="form-label">Analysis Name</label>
+                        <input type="text" class="form-control" id="excerptAnalysisName" name="analysis_name"
+                            placeholder="e.g., Baseline Review (optional)">
+                        <div class="form-text">Provide a name to associate this excerpt with an analysis run, or
+                            leave blank to keep it manual.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="excerptCodebook" class="form-label">Codebook</label>
+                        <select class="form-select" id="excerptCodebook" name="codebook_id" required {% if not project.codebooks %}disabled{% endif %}>
+                            <option value="">Select codebook...</option>
+                            {% for codebook in project.codebooks %}
+                            <option value="{{ codebook.id }}">{{ codebook.name }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if not project.codebooks %}
+                        <div class="form-text text-danger">Add a codebook to this project before creating excerpts.</div>
+                        {% endif %}
+                    </div>
 
                     <div class="mb-3">
                         <label for="excerptMedia" class="form-label">Media</label>
@@ -41,13 +63,13 @@
 
                     <div class="mb-3">
                         <label for="excerptText" class="form-label">Excerpt</label>
-                        <textarea class="form-control" id="excerptText" name="excerpt" rows="4" required
+                        <textarea class="form-control" id="excerptText" name="excerpt" rows="8" required
                             placeholder="Paste the relevant text excerpt here..."></textarea>
                     </div>
 
                     <div class="mb-3">
                         <label for="excerptExplanation" class="form-label">Explanation (optional)</label>
-                        <textarea class="form-control" id="excerptExplanation" name="explanation" rows="3"
+                        <textarea class="form-control" id="excerptExplanation" name="explanation" rows="10"
                             placeholder="Add your analysis or notes about this excerpt..."></textarea>
                     </div>
                 </div>

@@ -118,6 +118,12 @@ class CodebookForm(FlaskForm):
         Length(max=1000, message='Description cannot exceed 1000 characters')
     ])
     project_id = SelectField('Project (Optional)', coerce=str, validators=[Optional()])
+    visibility = SelectField(
+        'Visibility',
+        choices=[('private', 'Private'), ('public', 'Public')],
+        default='private',
+        validators=[DataRequired()]
+    )
     
     def __init__(self, *args, **kwargs):
         super(CodebookForm, self).__init__(*args, **kwargs)
@@ -206,5 +212,11 @@ class ProjectForm(FlaskForm):
         Optional(),
         Length(max=500, message='Description cannot exceed 500 characters')
     ])
+    visibility = SelectField(
+        'Visibility',
+        choices=[('private', 'Private'), ('public', 'Public')],
+        default='private',
+        validators=[DataRequired()]
+    )
     def __init__(self, *args, **kwargs):
         super(ProjectForm, self).__init__(*args, **kwargs)

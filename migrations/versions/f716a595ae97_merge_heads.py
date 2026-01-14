@@ -5,8 +5,8 @@ Revises: add_excerpts_table, add_view_only_admin
 Create Date: 2025-11-25 14:42:29.241693
 
 """
-from alembic import op
-import sqlalchemy as sa
+from alembic import op  # noqa: F401  (required for Alembic runtime)
+import sqlalchemy as sa  # noqa: F401
 
 
 # revision identifiers, used by Alembic.
@@ -17,8 +17,10 @@ depends_on = None
 
 
 def upgrade():
-    pass
+	"""No-op merge revision."""
+	pass
 
 
 def downgrade():
-    pass
+	"""No-op merge revision."""
+	pass

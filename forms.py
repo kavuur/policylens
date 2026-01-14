@@ -200,7 +200,7 @@ class ProjectForm(FlaskForm):
     """Form for creating and editing projects."""
     name = StringField('Project Name', validators=[
         DataRequired('Project name is required'),
-        Length(min=3, max=100, message='Project name must be between 3 and 100 characters')
+        Length(min=3, max=500, message='Project name must be between 3 and 500 characters')
     ])
     description = TextAreaField('Description', validators=[
         Optional(),

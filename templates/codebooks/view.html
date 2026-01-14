@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}{{ codebook.name }} - Codebook Library{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+        <div>
+            <h1 class="h3 mb-2">{{ codebook.name }}</h1>
+            {% if codebook.description %}
+            <p class="text-muted mb-2">{{ codebook.description }}</p>
+            {% endif %}
+            <div class="text-muted small">
+                Owned by {{ codebook.user.name or codebook.user.email }} |
+                Visibility: {{ codebook.visibility|title }} |
+                Created {{ codebook.created_at.strftime('%b %d, %Y') if codebook.created_at else 'Unknown' }}
+            </div>
+        </div>
+        <div class="btn-group" role="group" aria-label="Export codebook">
+            <a class="btn btn-outline-secondary" href="{{ url_for('export_codebook', codebook_id=codebook.id, format='pdf') }}">
+                <i class="fas fa-file-pdf me-1"></i> PDF
+            </a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('export_codebook', codebook_id=codebook.id, format='docx') }}">
+                <i class="fas fa-file-word me-1"></i> DOCX
+            </a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('export_codebook', codebook_id=codebook.id, format='xlsx') }}">
+                <i class="fas fa-file-excel me-1"></i> XLSX
+            </a>
+        </div>
+    </div>
+
+    {% if codebook.codes %}
+    <div class="codebook-catalog">
+        {% for code in codebook.codes|sort(attribute='code') %}
+        <div class="card mb-3 shadow-sm border-0">
+            <div class="card-body">
+                <h5 class="card-title mb-1">{{ code.code }}</h5>
+                {% if code.description %}
+                <p class="text-muted mb-3">{{ code.description }}</p>
+                {% endif %}
+                {% if code.subcodes %}
+                <div class="ps-3 border-start border-2">
+                    {% for subcode in code.subcodes|sort(attribute='subcode') %}
+                    <div class="mb-3">
+                        <h6 class="mb-1">{{ subcode.subcode }}</h6>
+                        {% if subcode.description %}
+                        <p class="text-muted small mb-2">{{ subcode.description }}</p>
+                        {% endif %}
+                        {% if subcode.subsubcodes %}
+                        <ul class="list-unstyled ms-3">
+                            {% for subsub in subcode.subsubcodes|sort(attribute='subsubcode') %}
+                            <li class="mb-2">
+                                <strong>{{ subsub.subsubcode }}</strong>
+                                {% if subsub.description %}
+                                <span class="text-muted">- {{ subsub.description }}</span>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        This codebook does not contain any codes yet.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

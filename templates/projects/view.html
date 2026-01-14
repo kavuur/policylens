@@ -117,13 +117,18 @@
             <div class="tab-content p-3 border border-top-0 rounded-bottom" id="projectTabsContent">
                 <!-- Media Tab -->
                 <div class="tab-pane fade show active" id="media" role="tabpanel" aria-labelledby="media-tab">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5>Project Media</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <h5 class="mb-0">Project Media</h5>
                         {% if not current_user.is_view_only_admin %}
-                        <a href="{{ url_for('upload_media') }}?project_id={{ project.id }}"
-                            class="btn btn-success btn-sm">
-                            <i class="fas fa-plus me-1"></i> Add Media
-                        </a>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="{{ url_for('upload_media') }}?project_id={{ project.id }}"
+                                class="btn btn-success btn-sm">
+                                <i class="fas fa-plus me-1"></i> Add Media
+                            </a>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="importMediaBtn">
+                                <i class="fas fa-file-import me-1"></i> Import From Library
+                            </button>
+                        </div>
                         {% endif %}
                     </div>
 
@@ -174,13 +179,18 @@
 
                 <!-- Codebooks Tab -->
                 <div class="tab-pane fade" id="codebooks" role="tabpanel" aria-labelledby="codebooks-tab">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5>Project Codebooks</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <h5 class="mb-0">Project Codebooks</h5>
                         {% if not current_user.is_view_only_admin %}
-                        <a href="{{ url_for('create_codebook') }}?project_id={{ project.id }}"
-                            class="btn btn-success btn-sm">
-                            <i class="fas fa-plus me-1"></i> Create Codebook
-                        </a>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="{{ url_for('create_codebook') }}?project_id={{ project.id }}"
+                                class="btn btn-success btn-sm">
+                                <i class="fas fa-plus me-1"></i> Create Codebook
+                            </a>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="importCodebookBtn">
+                                <i class="fas fa-file-import me-1"></i> Import From Library
+                            </button>
+                        </div>
                         {% endif %}
                     </div>
 
@@ -218,6 +228,62 @@
                         {% endif %}
                     </div>
                     {% endif %}
+
+                    <hr class="my-4">
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                            <div>
+                                <h6 class="mb-1">Public Codebooks From Other Users</h6>
+                                <p class="text-muted small mb-0">Browse community codebooks that you can view or export for reference.</p>
+                            </div>
+                            <a href="{{ url_for('list_codebooks') }}" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-external-link-alt me-1"></i> Manage My Codebooks
+                            </a>
+                        </div>
+
+                        {% if shared_codebooks %}
+                        <div class="row">
+                            {% for shared in shared_codebooks %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100 border-secondary-subtle">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 class="mb-0">{{ shared.name }}</h6>
+                                            <span class="badge bg-secondary-subtle text-secondary">Shared</span>
+                                        </div>
+                                        {% if shared.description %}
+                                        <p class="text-muted small">{{ shared.description|truncate(120) }}</p>
+                                        {% endif %}
+                                        <div class="text-muted small">
+                                            By {{ shared.owner_name }} | {{ shared.created_label }}
+                                        </div>
+                                    </div>
+                                    <div class="card-footer bg-transparent d-flex flex-wrap gap-2">
+                                        <a href="{{ url_for('view_codebook', codebook_id=shared.id) }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                            <i class="fas fa-eye me-1"></i> View
+                                        </a>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="fas fa-file-export me-1"></i> Export
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li><a class="dropdown-item" href="{{ url_for('export_codebook', codebook_id=shared.id, format='pdf') }}">PDF</a></li>
+                                                <li><a class="dropdown-item" href="{{ url_for('export_codebook', codebook_id=shared.id, format='docx') }}">DOCX</a></li>
+                                                <li><a class="dropdown-item" href="{{ url_for('export_codebook', codebook_id=shared.id, format='xlsx') }}">XLSX</a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-light border mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No public codebooks are available yet. Encourage your team to publish theirs!
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
 
                 <!-- Collaborators Tab -->
@@ -539,6 +605,84 @@
         </div>
     </div>
 </div>
+
+<!-- Import Media Modal -->
+<div class="modal fade" id="importMediaModal" tabindex="-1" aria-labelledby="importMediaModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <form class="modal-content" id="importMediaForm">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importMediaModalLabel">Import Media From Library</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Select media files you already uploaded that are not linked to any
+                    project.</p>
+                <div id="importMediaAlert" class="alert d-none" role="alert"></div>
+                <div id="importMediaLoading" class="d-flex align-items-center text-muted mb-3 d-none">
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Loading available media...
+                </div>
+                <div class="mb-3">
+                    <label for="importMediaSelect" class="form-label">Available Media</label>
+                    <select class="form-select" id="importMediaSelect" multiple size="10"
+                        data-placeholder="Select media to import"></select>
+                    <div class="form-text">Use search to filter. Files already attached to a project are hidden.</div>
+                </div>
+                <div id="importMediaEmpty" class="text-center text-muted py-4 d-none">
+                    <i class="fas fa-photo-video fa-2x mb-2"></i>
+                    <p class="mb-0">No media files are available for import.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="confirmMediaImportBtn">
+                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    Import Selected
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Import Codebook Modal -->
+<div class="modal fade" id="importCodebookModal" tabindex="-1" aria-labelledby="importCodebookModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <form class="modal-content" id="importCodebookForm">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importCodebookModalLabel">Import Codebooks From Library</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Bring existing codebooks you own into this project without leaving the
+                    page.</p>
+                <div id="importCodebookAlert" class="alert d-none" role="alert"></div>
+                <div id="importCodebookLoading" class="d-flex align-items-center text-muted mb-3 d-none">
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Loading available codebooks...
+                </div>
+                <div class="mb-3">
+                    <label for="importCodebookSelect" class="form-label">Available Codebooks</label>
+                    <select class="form-select" id="importCodebookSelect" multiple size="10"
+                        data-placeholder="Select codebooks to import"></select>
+                    <div class="form-text">Shows your draft codebooks plus any public codebooks shared by other users.</div>
+                </div>
+                <div id="importCodebookEmpty" class="text-center text-muted py-4 d-none">
+                    <i class="fas fa-book fa-2x mb-2"></i>
+                    <p class="mb-0">No codebooks are available for import.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="confirmCodebookImportBtn">
+                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    Import Selected
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -627,6 +771,12 @@
         let activeAnalysisId = null;
         const exportFormats = ['csv', 'excel', 'word', 'pdf'];
         const exportExtensionMap = { csv: 'csv', excel: 'xlsx', word: 'docx', pdf: 'pdf' };
+        const importMediaModalEl = document.getElementById('importMediaModal');
+        const importMediaModal = importMediaModalEl ? new bootstrap.Modal(importMediaModalEl) : null;
+        const importCodebookModalEl = document.getElementById('importCodebookModal');
+        const importCodebookModal = importCodebookModalEl ? new bootstrap.Modal(importCodebookModalEl) : null;
+        const importMediaForm = document.getElementById('importMediaForm');
+        const importCodebookForm = document.getElementById('importCodebookForm');
 
         function showAnalysisStatus(message, type = 'success') {
             const $el = $('#analysisStatus');
@@ -669,10 +819,63 @@
             }
         }
 
+        function extractErrorSnippet(text) {
+            if (!text) {
+                return '';
+            }
+            return text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 150);
+        }
+
+        function fetchJson(url, options = {}) {
+            return fetch(url, options).then(async response => {
+                const raw = await response.text();
+                let payload = {};
+                if (raw) {
+                    try {
+                        payload = JSON.parse(raw);
+                    } catch (err) {
+                        const snippet = extractErrorSnippet(raw);
+                        if (!response.ok) {
+                            throw new Error(snippet || `Request failed with status ${response.status}`);
+                        }
+                        throw new Error('Received an unexpected response from the server.');
+                    }
+                }
+                if (!response.ok || payload.success === false) {
+                    throw new Error(payload.message || payload.error || `Request failed with status ${response.status}`);
+                }
+                return payload;
+            });
+        }
+
+        function setModalAlert(selector, message = '', type = 'info') {
+            const $alert = $(selector);
+            if (!$alert.length) {
+                return;
+            }
+            $alert.removeClass('alert-info alert-success alert-danger alert-warning');
+            if (!message) {
+                $alert.addClass('d-none').text('');
+                return;
+            }
+            const icon = type === 'danger' ? 'fa-exclamation-circle' : (type === 'success' ? 'fa-check-circle' : 'fa-info-circle');
+            $alert.removeClass('d-none').addClass(`alert-${type}`)
+                .html(`<i class="fas ${icon} me-2"></i>${message}`);
+        }
+
         function formatDate(isoString) {
             if (!isoString) return '';
             const date = new Date(isoString);
             return date.toLocaleString('en-US', { timeZone: 'Africa/Nairobi' });
+        }
+
+        function formatShortDate(isoString) {
+            if (!isoString) return 'Unknown date';
+            const date = new Date(isoString);
+            if (Number.isNaN(date.getTime())) {
+                return 'Unknown date';
+            }
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         }
 
         function escapeHtml(value) {
@@ -896,6 +1099,89 @@
                         <tbody>${rows}</tbody>
                     </table>
                 </div>`;
+        }
+
+        function loadMediaLibraryOptions() {
+            const $select = $('#importMediaSelect');
+            if (!$select.length) {
+                return Promise.resolve();
+            }
+            const $empty = $('#importMediaEmpty');
+            const $loading = $('#importMediaLoading');
+            setModalAlert('#importMediaAlert');
+            $empty.addClass('d-none');
+            $loading.removeClass('d-none');
+            $select.prop('disabled', true).html('');
+            return fetchJson(`/api/projects/${projectId}/media/library`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(data => {
+                    const items = data.media || [];
+                    if (!items.length) {
+                        $empty.removeClass('d-none');
+                        return;
+                    }
+                    const options = items.map(item => {
+                        const label = escapeHtml(item.filename || 'Untitled file');
+                        const typeLabel = escapeHtml(item.file_type || 'Unknown type');
+                        const dateLabel = escapeHtml(formatShortDate(item.uploaded_at));
+                        const desc = (item.description || '').trim();
+                        const details = desc ? ` · ${escapeHtml(truncateText(desc, 80))}` : '';
+                        return `<option value="${item.id}" data-search="${(item.filename || '').toLowerCase()}">${label} · ${typeLabel} · ${dateLabel}${details}</option>`;
+                    });
+                    $select.html(options.join(''));
+                    $select.prop('disabled', false);
+                })
+                .catch(err => {
+                    setModalAlert('#importMediaAlert', err.message || 'Failed to load media library', 'danger');
+                })
+                .finally(() => {
+                    $loading.addClass('d-none');
+                    $select.trigger('change.select2');
+                });
+        }
+
+        function loadCodebookLibraryOptions() {
+            const $select = $('#importCodebookSelect');
+            if (!$select.length) {
+                return Promise.resolve();
+            }
+            const $empty = $('#importCodebookEmpty');
+            const $loading = $('#importCodebookLoading');
+            setModalAlert('#importCodebookAlert');
+            $empty.addClass('d-none');
+            $loading.removeClass('d-none');
+            $select.prop('disabled', true).html('');
+            return fetchJson(`/api/projects/${projectId}/codebooks/library`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(data => {
+                    const items = data.codebooks || [];
+                    if (!items.length) {
+                        $empty.removeClass('d-none');
+                        return;
+                    }
+                    const options = items.map(item => {
+                        const name = escapeHtml(item.name || 'Untitled Codebook');
+                        const dateLabel = escapeHtml(formatShortDate(item.created_at));
+                        const desc = (item.description || '').trim();
+                        const details = desc ? ` · ${escapeHtml(truncateText(desc, 80))}` : '';
+                        const ownerLabel = item.owner_name ? ` · ${escapeHtml(item.owner_name)}` : '';
+                        const sourceLabel = item.source === 'shared' ? '[Shared]' : '[My]';
+                        const searchBlob = `${(item.name || '').toLowerCase()} ${(item.owner_name || '').toLowerCase()}`.trim();
+                        const searchAttr = escapeHtml(searchBlob);
+                        return `<option value="${item.id}" data-search="${searchAttr}">${sourceLabel} ${name} · ${dateLabel}${ownerLabel}${details}</option>`;
+                    });
+                    $select.html(options.join(''));
+                    $select.prop('disabled', false);
+                })
+                .catch(err => {
+                    setModalAlert('#importCodebookAlert', err.message || 'Failed to load codebooks', 'danger');
+                })
+                .finally(() => {
+                    $loading.addClass('d-none');
+                    $select.trigger('change.select2');
+                });
         }
 
         function renderAccordionSection(group, index, isManual = false) {
@@ -1610,6 +1896,22 @@
                 dropdownParent: $('#analysis'),
                 theme: 'bootstrap-5'
             });
+
+            $('#importMediaSelect').select2({
+                placeholder: 'Select media to import',
+                width: '100%',
+                closeOnSelect: false,
+                dropdownParent: $('#importMediaModal'),
+                theme: 'bootstrap-5'
+            });
+
+            $('#importCodebookSelect').select2({
+                placeholder: 'Select codebooks to import',
+                width: '100%',
+                closeOnSelect: false,
+                dropdownParent: $('#importCodebookModal'),
+                theme: 'bootstrap-5'
+            });
         }
 
         $(document).on('click', '.remove-collaborator', function () {
@@ -1646,6 +1948,104 @@
                 }
             });
         });
+
+        if (importMediaModal) {
+            $('#importMediaBtn').on('click', function () {
+                importMediaModal.show();
+            });
+            $('#importMediaModal').on('shown.bs.modal', loadMediaLibraryOptions);
+            $('#importMediaModal').on('hidden.bs.modal', function () {
+                $('#importMediaSelect').val(null).trigger('change');
+                setModalAlert('#importMediaAlert');
+            });
+        }
+
+        if (importCodebookModal) {
+            $('#importCodebookBtn').on('click', function () {
+                importCodebookModal.show();
+            });
+            $('#importCodebookModal').on('shown.bs.modal', loadCodebookLibraryOptions);
+            $('#importCodebookModal').on('hidden.bs.modal', function () {
+                $('#importCodebookSelect').val(null).trigger('change');
+                setModalAlert('#importCodebookAlert');
+            });
+        }
+
+        if (importMediaForm) {
+            $('#importMediaForm').on('submit', function (e) {
+                e.preventDefault();
+                const selected = ($('#importMediaSelect').val() || [])
+                    .map(id => parseInt(id, 10))
+                    .filter(id => Number.isInteger(id));
+                if (!selected.length) {
+                    setModalAlert('#importMediaAlert', 'Select at least one media file to import.', 'danger');
+                    return;
+                }
+                const $btn = $('#confirmMediaImportBtn');
+                const $spinner = $btn.find('.spinner-border');
+                $btn.prop('disabled', true);
+                $spinner.removeClass('d-none');
+
+                fetchJson(`/api/projects/${projectId}/media/import`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ media_ids: selected })
+                })
+                    .then(data => {
+                        showAlert(data.message || 'Media imported.', 'success');
+                        importMediaModal.hide();
+                        setTimeout(() => window.location.reload(), 400);
+                    })
+                    .catch(err => {
+                        setModalAlert('#importMediaAlert', err.message || 'Failed to import media', 'danger');
+                    })
+                    .finally(() => {
+                        $btn.prop('disabled', false);
+                        $spinner.addClass('d-none');
+                    });
+            });
+        }
+
+        if (importCodebookForm) {
+            $('#importCodebookForm').on('submit', function (e) {
+                e.preventDefault();
+                const selected = ($('#importCodebookSelect').val() || [])
+                    .map(id => parseInt(id, 10))
+                    .filter(id => Number.isInteger(id));
+                if (!selected.length) {
+                    setModalAlert('#importCodebookAlert', 'Select at least one codebook to import.', 'danger');
+                    return;
+                }
+                const $btn = $('#confirmCodebookImportBtn');
+                const $spinner = $btn.find('.spinner-border');
+                $btn.prop('disabled', true);
+                $spinner.removeClass('d-none');
+
+                fetchJson(`/api/projects/${projectId}/codebooks/import`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ codebook_ids: selected })
+                })
+                    .then(data => {
+                        showAlert(data.message || 'Codebooks imported.', 'success');
+                        importCodebookModal.hide();
+                        setTimeout(() => window.location.reload(), 400);
+                    })
+                    .catch(err => {
+                        setModalAlert('#importCodebookAlert', err.message || 'Failed to import codebooks', 'danger');
+                    })
+                    .finally(() => {
+                        $btn.prop('disabled', false);
+                        $spinner.addClass('d-none');
+                    });
+            });
+        }
 
         updateAnalyzeButtonState();
         $('#mediaSelect, #codebookSelect').on('change', updateAnalyzeButtonState);

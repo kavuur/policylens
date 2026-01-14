@@ -336,6 +336,41 @@ def serialize_analysis_run(analysis: AnalysisRun) -> dict:
     }
 
 
+def _clone_codebook_for_project(source: Codebook, owner_id: int, project_id: int) -> Codebook:
+    base_name = (source.name or 'Imported Codebook').strip() or 'Imported Codebook'
+    candidate_name = base_name
+    suffix = 2
+    while Codebook.query.filter_by(user_id=owner_id, name=candidate_name).first():
+        candidate_name = f"{base_name} (Copy {suffix})"
+        suffix += 1
+
+    cloned = Codebook(
+        name=candidate_name,
+        description=source.description,
+        visibility='private',
+        user_id=owner_id,
+        project_id=project_id
+    )
+    db.session.add(cloned)
+    db.session.flush()
+
+    for code in source.codes:
+        cloned_code = Code(code=code.code, description=code.description, codebook_id=cloned.id)
+        db.session.add(cloned_code)
+        db.session.flush()
+        for subcode in code.subcodes:
+            cloned_subcode = SubCode(subcode=subcode.subcode, description=subcode.description, code_id=cloned_code.id)
+            db.session.add(cloned_subcode)
+            db.session.flush()
+            for subsub in subcode.subsubcodes:
+                db.session.add(SubSubCode(
+                    subsubcode=subsub.subsubcode,
+                    description=subsub.description,
+                    subcode_id=cloned_subcode.id
+                ))
+    return cloned
+
+
 EXCERPT_EXPORT_COLUMNS = [
     ('ID', 'id'),
     ('Analysis', 'analysis'),
@@ -1129,6 +1164,28 @@ def view_project(project_id):
     codebooks = project.codebooks
     collaborators = project.collaborators
     is_owner = project.owner_id == current_user.id
+    project_codebook_ids = [cb.id for cb in codebooks]
+    shared_codebooks_query = Codebook.query.filter(Codebook.visibility == 'public')
+    if project_codebook_ids:
+        shared_codebooks_query = shared_codebooks_query.filter(Codebook.id.notin_(project_codebook_ids))
+    shared_codebooks_query = shared_codebooks_query.filter(Codebook.user_id != current_user.id)
+    shared_records = shared_codebooks_query.options(db.joinedload(Codebook.user)) \
+        .order_by(Codebook.name.asc()).limit(12).all()
+    shared_codebooks = []
+    for cb in shared_records:
+        owner_name = None
+        if cb.user:
+            owner_name = (cb.user.name or cb.user.email or '').strip()
+        if not owner_name:
+            owner_name = 'Unknown author'
+        created_label = cb.created_at.strftime('%b %d, %Y') if cb.created_at else 'Unknown date'
+        shared_codebooks.append({
+            'id': cb.id,
+            'name': cb.name,
+            'description': cb.description or '',
+            'owner_name': owner_name,
+            'created_label': created_label
+        })
     if hasattr(project, 'excerpts'):
         project.excerpts.sort(key=lambda x: x.created_at, reverse=True)
     return render_template('projects/view.html',
@@ -1136,7 +1193,8 @@ def view_project(project_id):
                            media_items=media_items,
                            codebooks=codebooks,
                            collaborators=collaborators,
-                           is_owner=is_owner)
+                           is_owner=is_owner,
+                           shared_codebooks=shared_codebooks)
 
 @app.route('/projects/new', methods=['GET', 'POST'])
 @login_required
@@ -1268,6 +1326,203 @@ def delete_project(project_id):
         return jsonify({'success': False, 'message': 'Permission denied'}), 403
     db.session.delete(project); db.session.commit()
     return jsonify({'success': True})
+
+
+@app.route('/api/projects/<int:project_id>/media/library', methods=['GET'])
+@login_required
+def get_project_media_library(project_id):
+    if current_user.is_view_only_admin:
+        return jsonify({'success': False, 'message': 'View-only admins cannot import media'}), 403
+    project = Project.query.options(db.joinedload(Project.collaborators)).get_or_404(project_id)
+    if not user_can_manage_project(project):
+        return jsonify({'success': False, 'message': 'You do not have permission to manage this project'}), 403
+
+    search = (request.args.get('search') or '').strip()
+    query = Media.query.filter(Media.project_id.is_(None))
+    if not can_edit_all():
+        query = query.filter(Media.user_id == current_user.id)
+    if search:
+        like = f"%{search}%"
+        query = query.filter(Media.filename.ilike(like))
+
+    media_items = query.order_by(Media.uploaded_at.desc()).limit(200).all()
+    payload = [{
+        'id': media.id,
+        'filename': media.filename,
+        'description': media.description or '',
+        'file_type': media.file_type or '',
+        'uploaded_at': media.uploaded_at.isoformat() if media.uploaded_at else None
+    } for media in media_items]
+    return jsonify({'success': True, 'media': payload, 'count': len(payload)})
+
+
+@app.route('/api/projects/<int:project_id>/media/import', methods=['POST'])
+@login_required
+def import_media_into_project(project_id):
+    if current_user.is_view_only_admin:
+        return jsonify({'success': False, 'message': 'View-only admins cannot import media'}), 403
+    project = Project.query.options(db.joinedload(Project.collaborators)).get_or_404(project_id)
+    if not user_can_manage_project(project):
+        return jsonify({'success': False, 'message': 'You do not have permission to manage this project'}), 403
+
+    data = request.get_json() or {}
+    raw_ids = data.get('media_ids') or []
+    try:
+        media_ids = sorted({int(mid) for mid in raw_ids})
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Invalid media id list supplied'}), 400
+    if not media_ids:
+        return jsonify({'success': False, 'message': 'Select at least one media item to import'}), 400
+
+    query = Media.query.filter(Media.id.in_(media_ids), Media.project_id.is_(None))
+    if not can_edit_all():
+        query = query.filter(Media.user_id == current_user.id)
+    media_items = query.all()
+    if not media_items:
+        return jsonify({'success': False, 'message': 'No media files are available for import'}), 400
+
+    imported = 0
+    for media in media_items:
+        media.project_id = project.id
+        imported += 1
+
+    if imported:
+        project.media_count = (project.media_count or 0) + imported
+
+    missing_ids = [mid for mid in media_ids if mid not in {m.id for m in media_items}]
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        app.logger.error('Failed to import media into project %s: %s', project_id, exc, exc_info=True)
+        return jsonify({'success': False, 'message': 'An error occurred while importing media'}), 500
+
+    message = f'Imported {imported} media file{"s" if imported != 1 else ""} into the project.'
+    if missing_ids:
+        message += ' Some selections were skipped because they are no longer available.'
+    return jsonify({'success': True, 'message': message, 'imported': imported, 'skipped_ids': missing_ids})
+
+
+@app.route('/api/projects/<int:project_id>/codebooks/library', methods=['GET'])
+@login_required
+def get_project_codebook_library(project_id):
+    if current_user.is_view_only_admin:
+        return jsonify({'success': False, 'message': 'View-only admins cannot import codebooks'}), 403
+    project = Project.query.options(db.joinedload(Project.collaborators)).get_or_404(project_id)
+    if not user_can_manage_project(project):
+        return jsonify({'success': False, 'message': 'You do not have permission to manage this project'}), 403
+
+    search = (request.args.get('search') or '').strip()
+    limit = min(request.args.get('limit', type=int) or 200, 400)
+
+    def apply_search_filters(q):
+        if not search:
+            return q
+        like = f"%{search}%"
+        return q.filter((Codebook.name.ilike(like)) | (Codebook.description.ilike(like)))
+
+    owned_query = Codebook.query.options(db.joinedload(Codebook.user))
+    owned_query = owned_query.filter(Codebook.user_id == current_user.id, Codebook.project_id.is_(None))
+    owned_query = apply_search_filters(owned_query)
+
+    shared_query = Codebook.query.options(db.joinedload(Codebook.user))
+    shared_query = shared_query.filter(Codebook.user_id != current_user.id, Codebook.visibility == 'public')
+    shared_query = apply_search_filters(shared_query)
+
+    owned = owned_query.order_by(Codebook.updated_at.desc()).limit(limit).all()
+    shared = shared_query.order_by(Codebook.updated_at.desc()).limit(limit).all()
+
+    def serialize_codebook(cb, source_label):
+        owner = None
+        if cb.user:
+            owner = (cb.user.name or cb.user.email or '').strip()
+        if not owner:
+            owner = 'Unknown author'
+        return {
+            'id': cb.id,
+            'name': cb.name,
+            'description': cb.description or '',
+            'created_at': cb.created_at.isoformat() if cb.created_at else None,
+            'owner_name': owner,
+            'source': source_label,
+            'visibility': cb.visibility
+        }
+
+    payload = [serialize_codebook(cb, 'mine') for cb in owned]
+    payload.extend(serialize_codebook(cb, 'shared') for cb in shared)
+    return jsonify({'success': True, 'codebooks': payload, 'count': len(payload)})
+
+
+@app.route('/api/projects/<int:project_id>/codebooks/import', methods=['POST'])
+@login_required
+def import_codebooks_into_project(project_id):
+    if current_user.is_view_only_admin:
+        return jsonify({'success': False, 'message': 'View-only admins cannot import codebooks'}), 403
+    project = Project.query.options(db.joinedload(Project.collaborators)).get_or_404(project_id)
+    if not user_can_manage_project(project):
+        return jsonify({'success': False, 'message': 'You do not have permission to manage this project'}), 403
+
+    data = request.get_json() or {}
+    raw_ids = data.get('codebook_ids') or []
+    try:
+        codebook_ids = sorted({int(cid) for cid in raw_ids})
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Invalid codebook id list supplied'}), 400
+    if not codebook_ids:
+        return jsonify({'success': False, 'message': 'Select at least one codebook to import'}), 400
+
+    codebooks = Codebook.query.options(
+        db.joinedload(Codebook.codes).joinedload(Code.subcodes).joinedload(SubCode.subsubcodes)
+    ).filter(Codebook.id.in_(codebook_ids)).all()
+    if not codebooks:
+        return jsonify({'success': False, 'message': 'No codebooks are available for import'}), 400
+
+    imported = 0
+    reassigned = 0
+    cloned = 0
+    skipped_ids = []
+
+    missing_ids = [cid for cid in codebook_ids if cid not in {c.id for c in codebooks}]
+    for codebook in codebooks:
+        if codebook.user_id == current_user.id:
+            if codebook.project_id == project.id:
+                continue
+            if codebook.project_id is None:
+                codebook.project_id = project.id
+                imported += 1
+                reassigned += 1
+            else:
+                _clone_codebook_for_project(codebook, current_user.id, project.id)
+                imported += 1
+                cloned += 1
+        elif codebook.visibility == 'public':
+            _clone_codebook_for_project(codebook, current_user.id, project.id)
+            imported += 1
+            cloned += 1
+        elif can_edit_all():
+            codebook.project_id = project.id
+            imported += 1
+            reassigned += 1
+        else:
+            skipped_ids.append(codebook.id)
+
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        app.logger.error('Failed to import codebooks into project %s: %s', project_id, exc, exc_info=True)
+        return jsonify({'success': False, 'message': 'An error occurred while importing codebooks'}), 500
+
+    message = f'Imported {imported} codebook{"s" if imported != 1 else ""} into the project.'
+    if cloned:
+        message += f' Cloned {cloned} shared codebook{"s" if cloned != 1 else ""}.'
+    if reassigned:
+        message += f' Linked {reassigned} draft codebook{"s" if reassigned != 1 else ""}.'
+    if missing_ids or skipped_ids:
+        message += ' Some selections were skipped because they are no longer available.'
+    skipped = list(set(missing_ids + skipped_ids))
+    return jsonify({'success': True, 'message': message, 'imported': imported, 'cloned': cloned,
+                    'reassigned': reassigned, 'skipped_ids': skipped})
 
 # -----------------------------------------------------------------------------
 # Media
@@ -1902,7 +2157,7 @@ def export_codebook(codebook_id, format):
         joinedload(Codebook.codes).joinedload(Code.subcodes).joinedload(SubCode.subsubcodes)
     ).get_or_404(codebook_id)
     
-    if codebook.user_id != current_user.id and not current_user.is_admin:
+    if codebook.user_id != current_user.id and codebook.visibility != 'public' and not can_view_all():
         abort(403)
     
     format = format.lower()
@@ -1923,6 +2178,21 @@ def export_codebook(codebook_id, format):
     else:
         flash('Invalid export format.', 'danger')
         return redirect(url_for('view_codebook', codebook_id=codebook_id))
+
+
+@app.route('/codebooks/<int:codebook_id>')
+@login_required
+def view_codebook(codebook_id):
+    codebook = Codebook.query.options(
+        joinedload(Codebook.user),
+        joinedload(Codebook.codes).joinedload(Code.subcodes).joinedload(SubCode.subsubcodes)
+    ).get_or_404(codebook_id)
+
+    if codebook.user_id != current_user.id and codebook.visibility != 'public' and not can_view_all():
+        abort(403)
+
+    is_owner = codebook.user_id == current_user.id
+    return render_template('codebooks/view.html', codebook=codebook, is_owner=is_owner)
 
 @app.route('/code/<int:code_id>/edit', methods=['GET', 'POST'])
 @login_required

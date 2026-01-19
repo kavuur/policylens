@@ -323,9 +323,12 @@
                 <div class="mb-3 text-danger">
                     <i class="fas fa-exclamation-circle fa-3x"></i>
                 </div>
-                <h5 class="mb-2 fw-bold">Delete File?</h5>
-                <p class="text-muted mb-4">Are you sure you want to delete <strong id="deleteFilenamePlaceholder"
-                        class="text-dark"></strong>? This action cannot be undone.</p>
+                <h5 class="mb-2 fw-bold" id="deleteModalTitle">Delete File?</h5>
+                <p class="text-muted mb-4" id="deleteModalDescription">
+                    Are you sure you want to <span id="deleteModalAction">delete</span>
+                    <strong id="deleteFilenamePlaceholder" class="text-dark"></strong>?
+                    <span id="deleteModalWarning">This action cannot be undone.</span>
+                </p>
                 <div class="d-grid gap-2">
                     <button type="button" class="btn btn-danger" id="confirmDelete">Yes, Delete it</button>
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
@@ -629,6 +632,7 @@
 
 {% block scripts %}
 {{ super() }}
+{% set active_project = projects|selectattr('id', 'equalto', current_project_id)|first %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         // View Toggle
@@ -636,6 +640,8 @@
         const gridViewBtn = document.getElementById('gridViewBtn');
         const listView = document.getElementById('listView');
         const gridView = document.getElementById('gridView');
+        const currentProjectId = {{ current_project_id if current_project_id is not none else 'null' }};
+        const currentProjectName = {{ (active_project.name if active_project else '')|tojson }};
 
         // Load saved view preference
         const savedView = localStorage.getItem('mediaView') || 'list';
@@ -701,45 +707,80 @@
         // Delete Functionality
         const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
         let deleteId = null;
+        let deleteMode = 'delete';
+        const deleteModalTitle = document.getElementById('deleteModalTitle');
+        const deleteModalAction = document.getElementById('deleteModalAction');
+        const deleteModalWarning = document.getElementById('deleteModalWarning');
+        const deleteFilenamePlaceholder = document.getElementById('deleteFilenamePlaceholder');
+        const confirmDeleteBtn = document.getElementById('confirmDelete');
 
         document.querySelectorAll('.delete-media').forEach(btn => {
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
                 deleteId = this.dataset.id;
-                document.getElementById('deleteFilenamePlaceholder').textContent = this.dataset.filename;
+                deleteMode = currentProjectId ? 'unlink' : 'delete';
+                deleteFilenamePlaceholder.textContent = this.dataset.filename;
+                if (deleteMode === 'unlink') {
+                    deleteModalTitle.textContent = 'Remove From Project?';
+                    deleteModalAction.textContent = 'remove';
+                    deleteModalWarning.textContent = currentProjectName
+                        ? 'The file stays in your media library and any other projects.'
+                        : 'The file stays in your media library.';
+                    confirmDeleteBtn.textContent = 'Remove File';
+                } else {
+                    deleteModalTitle.textContent = 'Delete File?';
+                    deleteModalAction.textContent = 'delete';
+                    deleteModalWarning.textContent = 'This action cannot be undone.';
+                    confirmDeleteBtn.textContent = 'Yes, Delete it';
+                }
                 deleteModal.show();
             });
         });
 
-        document.getElementById('confirmDelete').addEventListener('click', function () {
+        confirmDeleteBtn.addEventListener('click', function () {
             if (!deleteId) return;
 
             const btn = this;
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Deleting...';
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> ${deleteMode === 'unlink' ? 'Removing...' : 'Deleting...'}`;
+            const payload = deleteMode === 'unlink' && currentProjectId ? { project_id: currentProjectId } : {};
 
             fetch(`/media/delete/${deleteId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token() }}'
-                }
+                },
+                body: JSON.stringify(payload)
             })
                 .then(response => {
-                    if (response.ok) {
-                        window.location.reload();
-                    } else {
-                        alert('Failed to delete file.');
-                        btn.disabled = false;
-                        btn.textContent = 'Yes, Delete it';
+                    if (!response.ok) {
+                        return response.json().then(data => {
+                            throw new Error(data.error || data.message || (deleteMode === 'unlink'
+                                ? 'Failed to remove file from project.'
+                                : 'Failed to delete file.'));
+                        }).catch(err => {
+                            if (err instanceof Error) {
+                                throw err;
+                            }
+                            throw new Error(deleteMode === 'unlink'
+                                ? 'Failed to remove file from project.'
+                                : 'Failed to delete file.');
+                        });
                     }
+                    return response.json().catch(() => ({}));
+                })
+                .then(() => {
+                    window.location.reload();
                 })
                 .catch(err => {
                     console.error(err);
-                    alert('Error deleting file.');
+                    alert(err.message || (deleteMode === 'unlink'
+                        ? 'Error removing file from project.'
+                        : 'Error deleting file.'));
                     btn.disabled = false;
-                    btn.textContent = 'Yes, Delete it';
+                    btn.textContent = deleteMode === 'unlink' ? 'Remove File' : 'Yes, Delete it';
                 });
         });
     });

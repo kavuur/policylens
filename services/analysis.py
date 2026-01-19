@@ -11,7 +11,7 @@ from flask import current_app
 from models.document import POLICY_TEXTS_IN_MEMORY, FRAMEWORK_TEXTS_IN_MEMORY
 from models.llm import OpenAI_LLM
 from models.search import SearchEngine
-from models.models import db, Codebook, Code, SubCode, SubSubCode, Media
+from models.models import db, Codebook, Code, SubCode, SubSubCode, Media, ProjectMedia
 
 logger = logging.getLogger(__name__)
 
@@ -210,9 +210,12 @@ POLICY CHUNKS:
                 )
 
                 if similarity >= 0.2:
-                    media = db.session.query(Media).filter_by(
-                        filename=doc_name, project_id=project_id
-                    ).first()
+                    media = (
+                        db.session.query(Media)
+                        .join(ProjectMedia, ProjectMedia.media_id == Media.id)
+                        .filter(Media.filename == doc_name, ProjectMedia.project_id == project_id)
+                        .first()
+                    )
                     if media:
                         strengths_text = "\n".join(strengths) if strengths else "None"
                         weaknesses_text = "\n".join(weaknesses) if weaknesses else "None"
@@ -291,7 +294,15 @@ POLICY CHUNKS:
 
         for media_id in media_ids:
             media = db.session.get(Media, media_id)
-            if not media or media.project_id != project_id:
+            if not media:
+                logger.warning(f"[analysis] skip media_id={media_id}: not found")
+                continue
+
+            is_linked = db.session.query(ProjectMedia.id).filter(
+                ProjectMedia.media_id == media_id,
+                ProjectMedia.project_id == project_id
+            ).first()
+            if not is_linked:
                 logger.warning(f"[analysis] skip media_id={media_id}: not found or wrong project")
                 continue
 

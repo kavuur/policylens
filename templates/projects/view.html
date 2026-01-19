@@ -158,6 +158,14 @@
                                             class="btn btn-sm btn-outline-success">
                                             <i class="fas fa-download"></i>
                                         </a>
+                                        {% if can_manage_project %}
+                                        <button type="button" class="btn btn-sm btn-outline-danger remove-project-media"
+                                            data-media-id="{{ media.id }}"
+                                            data-filename="{{ media.filename }}"
+                                            title="Remove from project">
+                                            <i class="fas fa-unlink"></i>
+                                        </button>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -619,8 +627,8 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted small mb-3">Select media files you already uploaded that are not linked to any
-                    project.</p>
+                <p class="text-muted small mb-3">Select media files you already uploaded. Files already linked to this
+                    project are hidden.</p>
                 <div id="importMediaAlert" class="alert d-none" role="alert"></div>
                 <div id="importMediaLoading" class="d-flex align-items-center text-muted mb-3 d-none">
                     <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -630,7 +638,7 @@
                     <label for="importMediaSelect" class="form-label">Available Media</label>
                     <select class="form-select" id="importMediaSelect" multiple size="10"
                         data-placeholder="Select media to import"></select>
-                    <div class="form-text">Use search to filter. Files already attached to a project are hidden.</div>
+                    <div class="form-text">Use search to filter. Files already attached to this project are hidden.</div>
                 </div>
                 <div id="importMediaEmpty" class="text-center text-muted py-4 d-none">
                     <i class="fas fa-photo-video fa-2x mb-2"></i>
@@ -780,6 +788,7 @@
         const importCodebookModal = importCodebookModalEl ? new bootstrap.Modal(importCodebookModalEl) : null;
         const importMediaForm = document.getElementById('importMediaForm');
         const importCodebookForm = document.getElementById('importCodebookForm');
+        const removeProjectMediaButtons = document.querySelectorAll('.remove-project-media');
 
         function showAnalysisStatus(message, type = 'success') {
             const $el = $('#analysisStatus');
@@ -805,6 +814,51 @@
                 const alertInstance = bootstrap.Alert.getOrCreateInstance(wrapper);
                 alertInstance.close();
             }, 4000);
+        }
+
+        function requestProjectMediaRemoval(buttonEl) {
+            const mediaId = buttonEl.dataset.mediaId;
+            const filename = buttonEl.dataset.filename;
+            if (!mediaId) {
+                return;
+            }
+            const confirmed = confirm(`Remove "${filename}" from this project?`);
+            if (!confirmed) {
+                return;
+            }
+            const originalHtml = buttonEl.innerHTML;
+            buttonEl.disabled = true;
+            buttonEl.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            fetch(`/media/delete/${mediaId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ project_id: projectId })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.message || 'Failed to remove media');
+                    }
+                    showAlert(data.message || 'Media removed from project.', 'success');
+                    window.location.reload();
+                })
+                .catch(err => {
+                    buttonEl.disabled = false;
+                    buttonEl.innerHTML = originalHtml;
+                    showAlert(err.message || 'Unable to remove media from project.', 'danger');
+                });
+        }
+
+        if (removeProjectMediaButtons.length) {
+            removeProjectMediaButtons.forEach(button => {
+                button.addEventListener('click', event => {
+                    event.preventDefault();
+                    requestProjectMediaRemoval(button);
+                });
+            });
         }
 
         function showInlineAlert(message, type) {

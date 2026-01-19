@@ -164,7 +164,8 @@ class Project(db.Model):
     # Relationships
     owner = db.relationship('User', foreign_keys=[owner_id], backref=db.backref('owned_projects', lazy='dynamic'))
     codebooks = db.relationship('Codebook', back_populates='project', cascade='all, delete-orphan')
-    media_items = db.relationship('Media', back_populates='project', cascade='all, delete-orphan')
+    media_links = db.relationship('ProjectMedia', back_populates='project', cascade='all, delete-orphan')
+    media_items = db.relationship('Media', secondary='project_media', back_populates='projects', lazy='select')
     excerpts = db.relationship('Excerpt', back_populates='project', cascade='all, delete-orphan')
     analysis_runs = db.relationship('AnalysisRun', back_populates='project', cascade='all, delete-orphan')
     collaborators = db.relationship(
@@ -179,6 +180,24 @@ class Project(db.Model):
     
     def __repr__(self):
         return f'<Project {self.name}>'
+
+class ProjectMedia(db.Model):
+    __tablename__ = 'project_media'
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id', ondelete='CASCADE'), nullable=False, index=True)
+    media_id = db.Column(db.Integer, db.ForeignKey('media.id', ondelete='CASCADE'), nullable=False, index=True)
+    added_by = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True, index=True)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+    project = db.relationship('Project', back_populates='media_links')
+    media = db.relationship('Media', back_populates='project_links')
+    added_by_user = db.relationship('User', foreign_keys=[added_by])
+
+    __table_args__ = (
+        db.UniqueConstraint('project_id', 'media_id', name='uq_project_media_project_id_media_id'),
+    )
+
 
 # This will be moved to the end of the file
 
@@ -222,8 +241,8 @@ class Media(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     user = db.relationship('User', back_populates='media_items')
     
-    project_id = db.Column(db.Integer, db.ForeignKey('project.id', ondelete='CASCADE'), nullable=True, index=True)
-    project = db.relationship('Project', back_populates='media_items')
+    project_links = db.relationship('ProjectMedia', back_populates='media', cascade='all, delete-orphan')
+    projects = db.relationship('Project', secondary='project_media', back_populates='media_items', viewonly=True)
     
     # One-to-many relationship with descriptors
     descriptors = db.relationship('Descriptor', back_populates='media', cascade='all, delete-orphan')

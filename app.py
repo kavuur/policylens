@@ -48,7 +48,8 @@ from flask_wtf.csrf import CSRFProtect
 # --- Models / Services ---
 from models.models import (
     db, User, PolicyDocument, Codebook, ResearchNote, Project,
-    Media, Descriptor, Code, SubCode, SubSubCode, Excerpt, AnalysisRun
+    Media, Descriptor, Code, SubCode, SubSubCode, Excerpt, AnalysisRun,
+    ProjectMedia
 )
 from forms import (
     ProjectForm, ProfileUpdateForm, PasswordUpdateForm,
@@ -329,6 +330,47 @@ def user_can_view_project(project: Project) -> bool:
     if project.owner_id == current_user.id:
         return True
     return any(collaborator.id == current_user.id for collaborator in project.collaborators)
+
+
+def media_link_exists(media_id: int | None, project_id: int | None) -> bool:
+    if not media_id or not project_id:
+        return False
+    return db.session.query(ProjectMedia.id).filter(
+        ProjectMedia.media_id == media_id,
+        ProjectMedia.project_id == project_id
+    ).first() is not None
+
+
+def link_media_to_project(media: Media | None, project: Project | None, added_by_id: int | None = None) -> bool:
+    if not media or not project:
+        return False
+    if media_link_exists(media.id, project.id):
+        return False
+    db.session.add(ProjectMedia(project_id=project.id, media_id=media.id, added_by=added_by_id))
+    project.media_count = (project.media_count or 0) + 1
+    return True
+
+
+def unlink_media_from_project(media: Media | None, project: Project | None) -> bool:
+    if not media or not project:
+        return False
+    link = ProjectMedia.query.filter_by(project_id=project.id, media_id=media.id).first()
+    if not link:
+        return False
+    db.session.delete(link)
+    if project.media_count:
+        project.media_count = max(project.media_count - 1, 0)
+    return True
+
+
+def unlink_media_from_all_projects(media: Media | None) -> None:
+    if not media:
+        return
+    for link in list(media.project_links):
+        project = link.project
+        db.session.delete(link)
+        if project and project.media_count:
+            project.media_count = max(project.media_count - 1, 0)
 
 
 def serialize_analysis_run(analysis: AnalysisRun) -> dict:
@@ -1325,7 +1367,7 @@ def get_project_media_library(project_id):
         return jsonify({'success': False, 'message': 'You do not have permission to manage this project'}), 403
 
     search = (request.args.get('search') or '').strip()
-    query = Media.query.filter(Media.project_id.is_(None))
+    query = Media.query.filter(~Media.project_links.any(ProjectMedia.project_id == project.id))
     if not can_edit_all():
         query = query.filter(Media.user_id == current_user.id)
     if search:
@@ -1359,7 +1401,7 @@ def import_media_into_project(project_id):
     if not media_ids:
         return jsonify({'success': False, 'message': 'Select at least one media item to import'}), 400
 
-    query = Media.query.filter(Media.id.in_(media_ids), Media.project_id.is_(None))
+    query = Media.query.filter(Media.id.in_(media_ids))
     if not can_edit_all():
         query = query.filter(Media.user_id == current_user.id)
     media_items = query.all()
@@ -1367,12 +1409,12 @@ def import_media_into_project(project_id):
         return jsonify({'success': False, 'message': 'No media files are available for import'}), 400
 
     imported = 0
+    skipped = []
     for media in media_items:
-        media.project_id = project.id
-        imported += 1
-
-    if imported:
-        project.media_count = (project.media_count or 0) + imported
+        if link_media_to_project(media, project, current_user.id):
+            imported += 1
+        else:
+            skipped.append(media.id)
 
     missing_ids = [mid for mid in media_ids if mid not in {m.id for m in media_items}]
     try:
@@ -1382,10 +1424,18 @@ def import_media_into_project(project_id):
         app.logger.error('Failed to import media into project %s: %s', project_id, exc, exc_info=True)
         return jsonify({'success': False, 'message': 'An error occurred while importing media'}), 500
 
-    message = f'Imported {imported} media file{"s" if imported != 1 else ""} into the project.'
+    message = f'Linked {imported} media file{"s" if imported != 1 else ""} to the project.'
     if missing_ids:
         message += ' Some selections were skipped because they are no longer available.'
-    return jsonify({'success': True, 'message': message, 'imported': imported, 'skipped_ids': missing_ids})
+    if skipped:
+        message += ' Files already linked to this project were ignored.'
+    return jsonify({
+        'success': True,
+        'message': message,
+        'imported': imported,
+        'skipped_ids': missing_ids,
+        'already_linked_ids': skipped
+    })
 
 
 @app.route('/api/projects/<int:project_id>/codebooks/library', methods=['GET'])
@@ -1531,7 +1581,7 @@ def list_media():
         )
     
     if project_id:
-        query = query.filter(Media.project_id == project_id)
+        query = query.join(ProjectMedia, ProjectMedia.media_id == Media.id).filter(ProjectMedia.project_id == project_id)
     
     if search:
         search_term = f"%{search}%"
@@ -1620,9 +1670,9 @@ def upload_media():
             visibility=form.visibility.data,
             file_type=file_type,
             file_size=file_size,
-            user_id=current_user.id,
-            project_id=form.project_id.data if form.project_id.data != 0 else None
+            user_id=current_user.id
         )
+        db.session.add(media)
         for key in request.form.keys():
             if key.startswith('descriptor_key_'):
                 idx = key.replace('descriptor_key_', '')
@@ -1630,11 +1680,11 @@ def upload_media():
                 desc_value = request.form.get(f'descriptor_value_{idx}')
                 if desc_key and desc_value:
                     db.session.add(Descriptor(key=desc_key, value=desc_value, media=media))
-        db.session.add(media)
+        db.session.flush()
         if form.project_id.data and form.project_id.data != 0:
-            project = Project.query.get(form.project_id.data)
+            project = db.session.get(Project, form.project_id.data)
             if project:
-                project.media_count = project.media_count + 1 if project.media_count else 1
+                link_media_to_project(media, project, current_user.id)
         db.session.commit()
         flash('File uploaded successfully!', 'success')
         return redirect(url_for('view_media', media_id=media.id))
@@ -1714,10 +1764,36 @@ def delete_media(media_id):
     if not can_manage_resource(media.user_id):
         return _deny('Permission denied')
 
+    payload = {}
+    if request.is_json:
+        payload = request.get_json(silent=True) or {}
+    elif request.form:
+        payload = request.form
+    project_context = payload.get('project_id')
+    try:
+        project_context = int(project_context)
+    except (TypeError, ValueError):
+        project_context = None
+
+    if project_context:
+        project = db.session.get(Project, project_context)
+        if not project:
+            return _deny('Project not found', 404)
+        if not user_can_manage_project(project):
+            return _deny('You do not have permission to update this project')
+        if not unlink_media_from_project(media, project):
+            return _deny('Media is not linked to this project', 400)
+        db.session.commit()
+        message = 'Media removed from project.'
+        if wants_json:
+            return jsonify({'success': True, 'message': message, 'media_id': media_id, 'project_id': project.id})
+        flash(message, 'success')
+        return redirect(request.referrer or url_for('view_project', project_id=project.id))
+
     if not wants_json:
         flash(f'Deleting "{media.filename}"…', 'warning')
 
-    project_id = media.project_id
+    unlink_media_from_all_projects(media)
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], media.filename)
     if os.path.exists(file_path):
         try:
@@ -1726,10 +1802,6 @@ def delete_media(media_id):
             app.logger.error(f'Error deleting file {file_path}: {e}')
 
     db.session.delete(media)
-    if project_id:
-        project = Project.query.get(project_id)
-        if project and project.media_count > 0:
-            project.media_count -= 1
     db.session.commit()
 
     if wants_json:
@@ -2517,7 +2589,7 @@ def save_excerpt():
             if not media or not codebook:
                 app.logger.warning(f"[save_excerpt] invalid media_id={media_id} or codebook_id={codebook_id}")
                 continue
-            if media.project_id != project_id or codebook.project_id != project_id:
+            if not media_link_exists(media.id, project_id) or codebook.project_id != project_id:
                 app.logger.warning(f"[save_excerpt] media_id={media_id} or codebook_id={codebook_id} not in project={project_id}")
                 continue
 
@@ -2595,7 +2667,7 @@ def create_project_excerpt():
     codebook = db.session.get(Codebook, codebook_id)
     if not media or not codebook:
         return jsonify({'success': False, 'message': 'Media or codebook not found'}), 404
-    if media.project_id != project_id or codebook.project_id != project_id:
+    if not media_link_exists(media.id, project_id) or codebook.project_id != project_id:
         return jsonify({'success': False, 'message': 'Media and codebook must belong to the same project'}), 400
 
     analysis = None
@@ -2678,7 +2750,7 @@ def update_project_excerpt(excerpt_id):
     codebook = db.session.get(Codebook, codebook_id)
     if not media or not codebook:
         return jsonify({'success': False, 'message': 'Media or codebook not found'}), 404
-    if media.project_id != project.id or codebook.project_id != project.id:
+    if not media_link_exists(media.id, project.id) or codebook.project_id != project.id:
         return jsonify({'success': False, 'message': 'Media and codebook must belong to the same project'}), 400
 
     analysis = None
@@ -2977,10 +3049,12 @@ def analyze_project():
             app.logger.warning(f"[analyze] codebook={codebook_id} not in project={project_id}")
             return jsonify({'error': 'Codebook does not belong to this project'}), 400
 
-        valid_media = db.session.query(Media).filter(
-            Media.id.in_(media_ids),
-            Media.project_id == project_id
-        ).all()
+        valid_media = (
+            db.session.query(Media)
+            .join(ProjectMedia, ProjectMedia.media_id == Media.id)
+            .filter(Media.id.in_(media_ids), ProjectMedia.project_id == project_id)
+            .all()
+        )
 
         if len(valid_media) != len(media_ids):
             app.logger.warning(

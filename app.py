@@ -305,9 +305,20 @@ def user_can_manage_project(project: Project) -> bool:
         return False
     if current_user.is_admin and not current_user.is_view_only_admin:
         return True
+    if current_user.is_view_only_admin:
+        return project.owner_id == current_user.id
     if project.owner_id == current_user.id:
         return True
     return any(collaborator.id == current_user.id for collaborator in project.collaborators)
+
+
+def can_manage_resource(owner_id: int | None) -> bool:
+    """True if the current user can mutate a resource owned by owner_id."""
+    if not current_user.is_authenticated or owner_id is None:
+        return False
+    if can_edit_all():
+        return True
+    return owner_id == current_user.id
 
 
 def user_can_view_project(project: Project) -> bool:
@@ -1048,11 +1059,8 @@ This link will expire in 24 hours. If you did not request this, please contact a
 @app.route('/media/<int:media_id>/descriptors', methods=['GET'])
 @login_required
 def edit_descriptors(media_id):
-    if current_user.is_view_only_admin:
-        flash('View-only admins cannot edit descriptors.', 'danger')
-        return redirect(url_for('list_media'))
     media = Media.query.get_or_404(media_id)
-    if media.user_id != current_user.id:
+    if not can_manage_resource(media.user_id):
         flash('You do not have permission to edit this media.', 'danger')
         return redirect(url_for('list_media'))
     return render_template('media/edit_descriptors.html', media=media)
@@ -1060,10 +1068,8 @@ def edit_descriptors(media_id):
 @app.route('/media/<int:media_id>/descriptors/add', methods=['POST'])
 @login_required
 def add_descriptor(media_id):
-    if current_user.is_view_only_admin:
-        return jsonify({'success': False, 'message': 'View-only admins cannot add descriptors'}), 403
     media = Media.query.get_or_404(media_id)
-    if media.user_id != current_user.id:
+    if not can_manage_resource(media.user_id):
         return jsonify({'success': False, 'message': 'Permission denied'}), 403
     data = request.get_json()
     key = data.get('key', '').strip()
@@ -1080,11 +1086,9 @@ def add_descriptor(media_id):
 @app.route('/media/<int:media_id>/descriptors/update', methods=['POST'])
 @login_required
 def update_descriptor(media_id):
-    if current_user.is_view_only_admin:
-        return jsonify({'success': False, 'message': 'View-only admins cannot update descriptors'}), 403
     media = Media.query.get_or_404(media_id)
     data = request.get_json()
-    if media.user_id != current_user.id:
+    if not can_manage_resource(media.user_id):
         return jsonify({'success': False, 'message': 'Permission denied'}), 403
     descriptor_id = data.get('descriptor_id')
     key = data.get('key', '').strip()
@@ -1106,11 +1110,9 @@ def update_descriptor(media_id):
 @app.route('/media/<int:media_id>/descriptors/delete', methods=['POST'])
 @login_required
 def delete_descriptor(media_id):
-    if current_user.is_view_only_admin:
-        return jsonify({'success': False, 'message': 'View-only admins cannot delete descriptors'}), 403
     media = Media.query.get_or_404(media_id)
     data = request.get_json()
-    if media.user_id != current_user.id:
+    if not can_manage_resource(media.user_id):
         return jsonify({'success': False, 'message': 'Permission denied'}), 403
     descriptor_id = data.get('descriptor_id')
     if not descriptor_id:
@@ -1164,6 +1166,7 @@ def view_project(project_id):
     codebooks = project.codebooks
     collaborators = project.collaborators
     is_owner = project.owner_id == current_user.id
+    can_manage_project = user_can_manage_project(project)
     project_codebook_ids = [cb.id for cb in codebooks]
     shared_codebooks_query = Codebook.query.filter(Codebook.visibility == 'public')
     if project_codebook_ids:
@@ -1194,14 +1197,12 @@ def view_project(project_id):
                            codebooks=codebooks,
                            collaborators=collaborators,
                            is_owner=is_owner,
+                           can_manage_project=can_manage_project,
                            shared_codebooks=shared_codebooks)
 
 @app.route('/projects/new', methods=['GET', 'POST'])
 @login_required
 def create_project():
-    if current_user.is_view_only_admin:
-        flash('View-only admins cannot create projects.', 'danger')
-        return redirect(url_for('list_projects'))
     form = ProjectForm()
     if form.validate_on_submit():
         project = Project(
@@ -1219,9 +1220,6 @@ def create_project():
 @app.route('/projects/save/<int:project_id>', methods=['POST'])
 @login_required
 def save_project(project_id=None):
-    if current_user.is_view_only_admin:
-        flash('View-only admins cannot edit projects.', 'danger')
-        return redirect(url_for('list_projects'))
     form = ProjectForm(request.form)
     if form.validate():
         try:
@@ -1256,9 +1254,6 @@ def save_project(project_id=None):
 @app.route('/projects/<int:project_id>/edit', methods=['GET'])
 @login_required
 def edit_project(project_id):
-    if current_user.is_view_only_admin:
-        flash('View-only admins cannot edit projects.', 'danger')
-        return redirect(url_for('list_projects'))
     project = Project.query.get_or_404(project_id)
     if project.owner_id != current_user.id and not can_edit_all():
         flash('You do not have permission to edit this project.', 'danger')
@@ -1269,8 +1264,6 @@ def edit_project(project_id):
 @app.route('/projects/<int:project_id>/add_collaborator', methods=['POST'])
 @login_required
 def add_collaborator(project_id):
-    if current_user.is_view_only_admin:
-        return jsonify({'success': False, 'message': 'View-only admins cannot add collaborators'}), 403
     try:
         project = Project.query.get_or_404(project_id)
         if project.owner_id != current_user.id and not can_edit_all():
@@ -1300,8 +1293,6 @@ def add_collaborator(project_id):
 @app.route('/projects/<int:project_id>/remove_collaborator/<int:user_id>', methods=['POST'])
 @login_required
 def remove_collaborator(project_id, user_id):
-    if current_user.is_view_only_admin:
-        return jsonify({'success': False, 'message': 'View-only admins cannot remove collaborators'}), 403
     project = Project.query.get_or_404(project_id)
     if project.owner_id != current_user.id and not can_edit_all():
         return jsonify({'success': False, 'message': 'Only the project owner or an admin can remove collaborators'}), 403
@@ -1319,8 +1310,6 @@ def remove_collaborator(project_id, user_id):
 @app.route('/projects/<int:project_id>/delete', methods=['POST'])
 @login_required
 def delete_project(project_id):
-    if current_user.is_view_only_admin:
-        return jsonify({'success': False, 'message': 'View-only admins cannot delete projects'}), 403
     project = Project.query.get_or_404(project_id)
     if project.owner_id != current_user.id and not can_edit_all():
         return jsonify({'success': False, 'message': 'Permission denied'}), 403
@@ -1331,8 +1320,6 @@ def delete_project(project_id):
 @app.route('/api/projects/<int:project_id>/media/library', methods=['GET'])
 @login_required
 def get_project_media_library(project_id):
-    if current_user.is_view_only_admin:
-        return jsonify({'success': False, 'message': 'View-only admins cannot import media'}), 403
     project = Project.query.options(db.joinedload(Project.collaborators)).get_or_404(project_id)
     if not user_can_manage_project(project):
         return jsonify({'success': False, 'message': 'You do not have permission to manage this project'}), 403
@@ -1359,8 +1346,6 @@ def get_project_media_library(project_id):
 @app.route('/api/projects/<int:project_id>/media/import', methods=['POST'])
 @login_required
 def import_media_into_project(project_id):
-    if current_user.is_view_only_admin:
-        return jsonify({'success': False, 'message': 'View-only admins cannot import media'}), 403
     project = Project.query.options(db.joinedload(Project.collaborators)).get_or_404(project_id)
     if not user_can_manage_project(project):
         return jsonify({'success': False, 'message': 'You do not have permission to manage this project'}), 403
@@ -1406,8 +1391,6 @@ def import_media_into_project(project_id):
 @app.route('/api/projects/<int:project_id>/codebooks/library', methods=['GET'])
 @login_required
 def get_project_codebook_library(project_id):
-    if current_user.is_view_only_admin:
-        return jsonify({'success': False, 'message': 'View-only admins cannot import codebooks'}), 403
     project = Project.query.options(db.joinedload(Project.collaborators)).get_or_404(project_id)
     if not user_can_manage_project(project):
         return jsonify({'success': False, 'message': 'You do not have permission to manage this project'}), 403
@@ -1456,8 +1439,6 @@ def get_project_codebook_library(project_id):
 @app.route('/api/projects/<int:project_id>/codebooks/import', methods=['POST'])
 @login_required
 def import_codebooks_into_project(project_id):
-    if current_user.is_view_only_admin:
-        return jsonify({'success': False, 'message': 'View-only admins cannot import codebooks'}), 403
     project = Project.query.options(db.joinedload(Project.collaborators)).get_or_404(project_id)
     if not user_can_manage_project(project):
         return jsonify({'success': False, 'message': 'You do not have permission to manage this project'}), 403
@@ -1583,9 +1564,6 @@ def list_media():
 @app.route('/media/upload', methods=['GET', 'POST'])
 @login_required
 def upload_media():
-    if current_user.is_view_only_admin:
-        flash('View-only admins cannot upload media.', 'danger')
-        return redirect(url_for('list_media'))
     form = MediaUploadForm()
     form.project_id.choices = [(0, '-- No Project --')] + [(p.id, p.name) for p in Project.query.filter_by(owner_id=current_user.id).all()]
     if form.validate_on_submit():
@@ -1685,10 +1663,7 @@ def download_media(media_id):
 @login_required
 def edit_media(media_id):
     media = Media.query.get_or_404(media_id)
-    if current_user.is_view_only_admin:
-        flash('View-only admins cannot edit media.', 'danger')
-        return redirect(url_for('list_media'))
-    if not current_user.is_admin and media.user_id != current_user.id:
+    if not can_manage_resource(media.user_id):
         flash('You do not have permission to edit this media.', 'danger')
         return redirect(url_for('list_media'))
     
@@ -1735,11 +1710,8 @@ def delete_media(media_id):
         flash(message, 'danger')
         return redirect(url_for('list_media'))
 
-    if current_user.is_view_only_admin:
-        return _deny('View-only admins cannot delete media')
-
     media = Media.query.get_or_404(media_id)
-    if media.user_id != current_user.id and not can_view_all():
+    if not can_manage_resource(media.user_id):
         return _deny('Permission denied')
 
     if not wants_json:
@@ -1849,7 +1821,7 @@ def update_codebook_item(codebook_id):
     if not item_type or not item_id or not name:
         return jsonify({'success': False, 'message': 'Missing required fields'}), 400
     codebook = Codebook.query.get_or_404(codebook_id)
-    if codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True:
+    if not can_manage_resource(codebook.user_id):
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     try:
         if item_type == 'code':
@@ -1891,7 +1863,7 @@ def save_codebook_item(codebook_id):
         return jsonify({'success': False, 'message': 'Parent ID is required'}), 400
     try:
         codebook = Codebook.query.get_or_404(codebook_id)
-        if codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True:
+        if not can_manage_resource(codebook.user_id):
             return jsonify({'success': False, 'message': 'Unauthorized'}), 403
         if level == 'code':
             if Code.query.filter_by(code=name, codebook_id=codebook_id).first():
@@ -1929,7 +1901,7 @@ def delete_codebook_item(codebook_id):
     """Delete a code, subcode, or subsubcode."""
     try:
         codebook = db.session.get(Codebook, codebook_id)
-        if not codebook or (codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True):
+        if not codebook or not can_manage_resource(codebook.user_id):
             return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
         data = request.get_json() or {}
@@ -1997,7 +1969,7 @@ def import_codebook():
             codebook_id = request.args.get('codebook_id', type=int)
 
         codebook = db.session.get(Codebook, codebook_id) if codebook_id else None
-        if codebook and (codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True):
+        if codebook and not can_manage_resource(codebook.user_id):
             return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
         # ---------- GET: extract from an existing on-disk file (PDF/DOC/DOCX) ----------
@@ -2141,7 +2113,8 @@ def create_codebook():
 def edit_codebook(codebook_id):
     from models.models import Project
     codebook = Codebook.query.get_or_404(codebook_id)
-    if codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True: abort(403)
+    if not can_manage_resource(codebook.user_id):
+        abort(403)
     form = CodebookForm(obj=codebook)
     projects = Project.query.filter_by(owner_id=current_user.id).all()
     form.project_id.choices = [('', 'Select a project (optional)')] + [(str(p.id), p.name) for p in projects]
@@ -2165,7 +2138,8 @@ def edit_codebook(codebook_id):
 @login_required
 def delete_codebook(codebook_id):
     codebook = Codebook.query.get_or_404(codebook_id)
-    if codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True: abort(403)
+    if not can_manage_resource(codebook.user_id):
+        abort(403)
     try:
         db.session.delete(codebook); db.session.commit()
         flash('Codebook deleted successfully!', 'success')
@@ -2224,7 +2198,8 @@ def view_codebook(codebook_id):
 def edit_code(code_id):
     code = Code.query.get_or_404(code_id)
     codebook = code.codebook
-    if codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True: abort(403)
+    if not can_manage_resource(codebook.user_id):
+        abort(403)
     if request.method == 'POST':
         try:
             code.code = request.form.get('code', '').strip()
@@ -2241,7 +2216,7 @@ def edit_code(code_id):
 @login_required
 def add_subcode(code_id):
     code = Code.query.get_or_404(code_id)
-    if code.codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True:
+    if not can_manage_resource(code.codebook.user_id):
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     data = request.get_json() or {}
     if 'name' not in data:
@@ -2258,7 +2233,8 @@ def add_subcode(code_id):
 @login_required
 def delete_code(code_id):
     code = Code.query.get_or_404(code_id)
-    if code.codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True: abort(403)
+    if not can_manage_resource(code.codebook.user_id):
+        abort(403)
     try:
         db.session.delete(code); db.session.commit()
         return '', 204
@@ -2277,7 +2253,8 @@ def edit_codebook_codes(codebook_id):
     codebook = Codebook.query.options(
         joinedload(Codebook.codes).joinedload(Code.subcodes).joinedload(SubCode.subsubcodes)
     ).get_or_404(codebook_id)
-    if codebook.user_id != current_user.id and not current_user.is_admin and current_user.is_view_only_admin == True: abort(403)
+    if not can_manage_resource(codebook.user_id):
+        abort(403)
 
     if request.method == 'POST' and request.is_json:
         try:

@@ -1,5 +1,21 @@
 {% extends "base.html" %}{% block title %}Edit Codes - {{ codebook.name }} - Policy Lens{% endblock %}{% block content
 %}<div class="container">
+    <style>
+        .codebook-tree-table .toggle-children {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .codebook-tree-table .toggle-spacer {
+            display: inline-block;
+            width: 32px;
+            height: 32px;
+        }
+    </style>
     {% set can_manage_codebook = (codebook.user_id == current_user.id) or (current_user.is_admin and not current_user.is_view_only_admin) %}
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
@@ -34,7 +50,7 @@
     <div class="card">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover codebook-tree-table">
                     <thead class="table-light">
                         <tr>
                             <th>Name</th>
@@ -44,9 +60,21 @@
                     </thead>
                     <tbody id="codebook-table-body">
                         {% for code in codebook.codes %}
+                        {% set has_subcodes = code.subcodes|length > 0 %}
                         <tr id="code-{{ code.id }}" data-type="code" data-id="{{ code.id }}" data-name="{{ code.code }}"
-                            data-description="{{ code.description or '' }}">
-                            <td><strong>{{ code.code }}</strong></td>
+                            data-description="{{ code.description or '' }}" data-has-children="{{ 'true' if has_subcodes else 'false' }}">
+                            <td class="align-middle">
+                                {% if has_subcodes %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary toggle-children me-2"
+                                    data-toggle-target="code-{{ code.id }}" aria-expanded="false"
+                                    aria-label="Toggle subcodes for {{ code.code }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                                {% else %}
+                                <span class="toggle-spacer me-2"></span>
+                                {% endif %}
+                                <strong>{{ code.code }}</strong>
+                            </td>
                             <td class="text-muted">{{ code.description or '' }}</td>
                             <td class="text-center">
                                 {% if can_manage_codebook %}
@@ -63,7 +91,7 @@
                         {% for subcode in code.subcodes %}
                         <tr id="subcode-{{ subcode.id }}" data-type="subcode" data-id="{{ subcode.id }}"
                             data-name="{{ subcode.subcode }}" data-description="{{ subcode.description or '' }}"
-                            class="table-group-divider">
+                            data-parent="code-{{ code.id }}" class="table-group-divider child-row subcode-row">
                             <td class="ps-4"><i class="fas fa-level-up-alt fa-rotate-90 me-2 text-muted"></i>{{
                                 subcode.subcode }}</td>
                             <td class="text-muted">{{ subcode.description or '' }}</td>
@@ -82,7 +110,8 @@
                         {% for subsubcode in subcode.subsubcodes %}
                         <tr id="subsubcode-{{ subsubcode.id }}" data-type="subsubcode" data-id="{{ subsubcode.id }}"
                             data-name="{{ subsubcode.subsubcode }}"
-                            data-description="{{ subsubcode.description or '' }}">
+                            data-description="{{ subsubcode.description or '' }}"
+                            data-parent="subcode-{{ subcode.id }}" class="child-row subsubcode-row">
                             <td class="ps-5"><i class="fas fa-turn-up fa-rotate-90 me-2 text-muted"></i>{{
                                 subsubcode.subsubcode }}</td>
                             <td class="text-muted">{{ subsubcode.description or '' }}</td>
@@ -199,6 +228,7 @@
         const toastEl = document.getElementById('notificationToast');
         const toast = new bootstrap.Toast(toastEl);
 
+        const codeTableBody = document.getElementById('codebook-table-body');
         const form = {
             action: document.getElementById('itemAction'),
             type: document.getElementById('itemType'),
@@ -208,6 +238,67 @@
             description: document.getElementById('itemDescription'),
             modalLabel: document.getElementById('itemModalLabel'),
         };
+
+        function setToggleState(button, expanded) {
+            button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            const icon = button.querySelector('i');
+            if (!icon) {
+                return;
+            }
+            icon.classList.toggle('fa-chevron-down', expanded);
+            icon.classList.toggle('fa-chevron-right', !expanded);
+        }
+
+        function hideDescendants(targetId) {
+            if (!codeTableBody) {
+                return;
+            }
+            const childRows = codeTableBody.querySelectorAll(`tr[data-parent="${targetId}"]`);
+            childRows.forEach(row => {
+                row.classList.add('d-none');
+                hideDescendants(row.id);
+                const childToggle = document.querySelector(`.toggle-children[data-toggle-target="${row.id}"]`);
+                if (childToggle) {
+                    setToggleState(childToggle, false);
+                }
+            });
+        }
+
+        function showDescendants(targetId) {
+            if (!codeTableBody) {
+                return;
+            }
+            const childRows = codeTableBody.querySelectorAll(`tr[data-parent="${targetId}"]`);
+            childRows.forEach(row => {
+                row.classList.remove('d-none');
+                showDescendants(row.id);
+            });
+        }
+
+        function handleToggle(button) {
+            const targetId = button.dataset.toggleTarget;
+            if (!targetId) {
+                return;
+            }
+            const expanded = button.getAttribute('aria-expanded') === 'true';
+            if (expanded) {
+                hideDescendants(targetId);
+                setToggleState(button, false);
+            } else {
+                showDescendants(targetId);
+                setToggleState(button, true);
+            }
+        }
+
+        function initializeCollapsedTree() {
+            if (!codeTableBody) {
+                return;
+            }
+            codeTableBody.querySelectorAll('.child-row').forEach(row => row.classList.add('d-none'));
+            document.querySelectorAll('.toggle-children').forEach(btn => setToggleState(btn, false));
+        }
+
+        initializeCollapsedTree();
 
         function showToast(title, message, isError = false) {
             toastEl.querySelector('#toastTitle').textContent = title;
@@ -221,8 +312,16 @@
             toast.show();
         }
 
+        const codeCardBody = document.querySelector('.card-body');
+
         // --- MAIN EVENT LISTENER FOR ALL ACTIONS ---
-        document.querySelector('.card-body').addEventListener('click', function (e) {
+        if (codeCardBody) {
+            codeCardBody.addEventListener('click', function (e) {
+            const toggleBtn = e.target.closest('.toggle-children');
+            if (toggleBtn) {
+                handleToggle(toggleBtn);
+                return;
+            }
             const addBtn = e.target.closest('.add-btn');
             const editBtn = e.target.closest('.edit-btn');
             const deleteBtn = e.target.closest('.delete-btn');
@@ -234,7 +333,8 @@
             } else if (deleteBtn) {
                 handleDelete(deleteBtn);
             }
-        });
+            });
+        }
 
         function setupModalForAdd(button) {
             document.getElementById('itemForm').reset();

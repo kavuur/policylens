@@ -446,6 +446,7 @@
                                 </div>
                             </div>
 
+                            {% set analysis_disabled = (not project.media_items) or (not project.codebooks) %}
                             <!-- Analysis Metadata -->
                             <div class="card mb-4">
                                 <div class="card-header bg-light">
@@ -453,15 +454,37 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="mb-3">
+                                        <label for="analysisNameSelect" class="form-label">Reuse Previous Analysis</label>
+                                        <select class="form-select" id="analysisNameSelect" data-locked="{{ 'true' if analysis_disabled else 'false' }}" {% if analysis_disabled %}disabled{% endif %}>
+                                            <option value="">Create new analysis...</option>
+                                            {% for run in analysis_runs %}
+                                            <option value="{{ run.id }}">
+                                                {{ run.name }}{% if run.created_label %} - {{ run.created_label }}{% endif %}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="form-text">Select an existing run to append new excerpts.</div>
+                                    </div>
+                                    <div class="mb-3" id="analysisNameInputGroup">
                                         <label for="analysisName" class="form-label">Analysis Name</label>
                                         <input type="text" class="form-control" id="analysisName"
-                                            placeholder="e.g., Baseline Review" {% if not project.media_items or not project.codebooks %}disabled{% endif %}>
-                                        <div class="form-text">This label will appear in the excerpts tab.</div>
+                                            placeholder="e.g., Baseline Review" data-locked="{{ 'true' if analysis_disabled else 'false' }}" {% if analysis_disabled %}disabled{% endif %}>
+                                        <div class="form-text" id="analysisNameHelper">This label will appear in the excerpts tab.</div>
                                     </div>
-                                    <div class="mb-0">
+                                    <div class="alert alert-info d-none" id="analysisExistingSummary">
+                                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                                            <div>
+                                                <i class="fas fa-layer-group me-2"></i>
+                                                Adding to <strong data-role="analysis-name"></strong>.
+                                            </div>
+                                            <button type="button" class="btn btn-link btn-sm p-0" id="clearAnalysisSelection">Switch to new analysis</button>
+                                        </div>
+                                    </div>
+                                    <div class="mb-0" id="analysisNotesGroup">
                                         <label for="analysisNotes" class="form-label">Notes (optional)</label>
                                         <textarea class="form-control" id="analysisNotes" rows="3"
-                                            placeholder="Add context or goals for this run..." {% if not project.media_items or not project.codebooks %}disabled{% endif %}></textarea>
+                                            placeholder="Add context or goals for this run..." data-locked="{{ 'true' if analysis_disabled else 'false' }}" {% if analysis_disabled %}disabled{% endif %}></textarea>
+                                        <div class="form-text" id="analysisNotesHelper">Add context or goals for this run. Notes are saved only with new analyses.</div>
                                     </div>
                                 </div>
                             </div>
@@ -762,6 +785,7 @@
         const projectId = {{ project.id }};
         const csrfToken = '{{ csrf_token() }}';
         const canManageExcerpts = {{ 'true' if can_manage_project else 'false' }};
+        const initialAnalysisRuns = {{ analysis_runs|default([], true)|tojson|safe }};
         const excerptModalEl = document.getElementById('excerptModal');
         const excerptModal = new bootstrap.Modal(excerptModalEl);
         const viewExcerptModalEl = document.getElementById('viewExcerptModal');
@@ -778,7 +802,7 @@
         let currentExcerptId = null;
         let lastViewedExcerpt = null;
         const selectedExcerptIds = new Set();
-        let availableAnalyses = [];
+        let availableAnalyses = Array.isArray(initialAnalysisRuns) ? initialAnalysisRuns.slice() : [];
         let activeAnalysisId = null;
         const exportFormats = ['csv', 'excel', 'word', 'pdf'];
         const exportExtensionMap = { csv: 'csv', excel: 'xlsx', word: 'docx', pdf: 'pdf' };
@@ -789,6 +813,14 @@
         const importMediaForm = document.getElementById('importMediaForm');
         const importCodebookForm = document.getElementById('importCodebookForm');
         const removeProjectMediaButtons = document.querySelectorAll('.remove-project-media');
+        const $analysisNameSelect = $('#analysisNameSelect');
+        const $analysisNameInput = $('#analysisName');
+        const $analysisNotesInput = $('#analysisNotes');
+        const $analysisExistingSummary = $('#analysisExistingSummary');
+        const $analysisNameHelper = $('#analysisNameHelper');
+        const $analysisNotesHelper = $('#analysisNotesHelper');
+        const analysisFormLocked = ($analysisNameInput.data('locked') === true || $analysisNameInput.data('locked') === 'true');
+        let pendingAnalysisName = ($analysisNameInput.val() || '').trim();
 
         function showAnalysisStatus(message, type = 'success') {
             const $el = $('#analysisStatus');
@@ -958,11 +990,84 @@
             updateBulkMovePanel();
         }
 
+        function populateAnalysisNameSelect(options = []) {
+            if (!$analysisNameSelect.length) {
+                return;
+            }
+            const safeOptions = Array.isArray(options) ? options.filter(Boolean) : [];
+            const previousValue = $analysisNameSelect.val();
+            const optionMarkup = ['<option value="">Create new analysis...</option>'];
+            const seen = new Set();
+            safeOptions.forEach(option => {
+                if (!option || !option.id || seen.has(option.id)) {
+                    return;
+                }
+                seen.add(option.id);
+                const safeName = escapeHtml(option.name || 'Analysis Run');
+                const dateLabel = option.created_at ? escapeHtml(formatShortDate(option.created_at)) : '';
+                const label = dateLabel ? `${safeName} - ${dateLabel}` : safeName;
+                optionMarkup.push(`<option value="${option.id}">${label}</option>`);
+            });
+            $analysisNameSelect.html(optionMarkup.join(''));
+            if (previousValue && safeOptions.some(opt => String(opt.id) === String(previousValue))) {
+                $analysisNameSelect.val(previousValue);
+            } else {
+                $analysisNameSelect.val('');
+            }
+            syncAnalysisSelectionUI();
+        }
+
+        function syncAnalysisSelectionUI() {
+            if (!$analysisNameInput.length || !$analysisNameSelect.length) {
+                return;
+            }
+            if (analysisFormLocked) {
+                updateAnalyzeButtonState();
+                return;
+            }
+            const selectedId = $analysisNameSelect.val();
+            const hasSelection = Boolean(selectedId);
+            if (hasSelection) {
+                if (!$analysisNameInput.prop('disabled')) {
+                    pendingAnalysisName = ($analysisNameInput.val() || '').trim();
+                }
+                const match = availableAnalyses.find(opt => String(opt.id) === String(selectedId));
+                const label = match ? match.name : 'Selected analysis';
+                $analysisNameInput.val(label).prop('disabled', true).addClass('bg-light');
+                $analysisNotesInput.val('').prop('disabled', true).addClass('bg-light');
+                if ($analysisExistingSummary.length) {
+                    $analysisExistingSummary.removeClass('d-none')
+                        .find('[data-role="analysis-name"]').text(label);
+                }
+                if ($analysisNameHelper.length) {
+                    $analysisNameHelper.text('New excerpts will be added to this analysis.').addClass('text-success');
+                }
+                if ($analysisNotesHelper.length) {
+                    $analysisNotesHelper.text('Notes can only be saved when creating a new analysis.').addClass('text-muted');
+                }
+            } else {
+                $analysisNameInput.prop('disabled', false).removeClass('bg-light');
+                $analysisNameInput.val(pendingAnalysisName || '');
+                $analysisNotesInput.prop('disabled', false).removeClass('bg-light');
+                if ($analysisExistingSummary.length) {
+                    $analysisExistingSummary.addClass('d-none');
+                }
+                if ($analysisNameHelper.length) {
+                    $analysisNameHelper.text('This label will appear in the excerpts tab.').removeClass('text-success');
+                }
+                if ($analysisNotesHelper.length) {
+                    $analysisNotesHelper.text('Add context or goals for this run. Notes are saved only with new analyses.').removeClass('text-muted');
+                }
+            }
+            updateAnalyzeButtonState();
+        }
+
         function populateBulkMoveOptions(options = []) {
+            availableAnalyses = Array.isArray(options) ? options.filter(Boolean) : [];
+            populateAnalysisNameSelect(availableAnalyses);
             if (!canManageExcerpts) {
                 return;
             }
-            availableAnalyses = options.filter(Boolean);
             const $select = $('#bulkMoveTarget');
             if (!$select.length) {
                 return;
@@ -1273,7 +1378,9 @@
         function updateAnalyzeButtonState() {
             const mediaSelected = ($('#mediaSelect').val() || []).length > 0;
             const codebookSelected = !!$('#codebookSelect').val();
-            const hasName = ($('#analysisName').val() || '').trim().length > 0;
+            const existingSelection = ($analysisNameSelect.val() || '').length > 0;
+            const manualNameProvided = (($analysisNameInput.val() || '').trim().length > 0);
+            const hasName = existingSelection || manualNameProvided;
             $('#analyzeBtn').prop('disabled', !(mediaSelected && codebookSelected && hasName));
         }
 
@@ -1560,11 +1667,15 @@
         $('#analyzeBtn').on('click', function () {
             const selectedMedia = $('#mediaSelect').val() || [];
             const selectedCodebook = $('#codebookSelect').val();
-            const analysisName = ($('#analysisName').val() || '').trim();
-            const analysisNotes = ($('#analysisNotes').val() || '').trim();
+            const selectedAnalysisId = ($analysisNameSelect.val() || '').trim();
+            const manualAnalysisName = ($analysisNameInput.val() || '').trim();
+            const selectedAnalysisLabel = selectedAnalysisId
+                ? ($analysisNameSelect.find('option:selected').text() || '').trim()
+                : manualAnalysisName;
+            const analysisNotes = selectedAnalysisId ? '' : ($analysisNotesInput.val() || '').trim();
 
-            if (!analysisName) {
-                showAnalysisStatus('Please provide an analysis name before running.', 'danger');
+            if (!selectedAnalysisId && !manualAnalysisName) {
+                showAnalysisStatus('Select an existing analysis or provide a new name before running.', 'danger');
                 return;
             }
             if (!selectedMedia.length || !selectedCodebook) {
@@ -1585,12 +1696,13 @@
                     media_ids: selectedMedia,
                     codebook_id: selectedCodebook,
                     project_id: projectId,
-                    analysis_name: analysisName,
+                    analysis_id: selectedAnalysisId || null,
+                    analysis_name: selectedAnalysisLabel,
                     analysis_notes: analysisNotes
                 }),
                 success: function (response) {
                     if (response.saved_excerpt_ids && response.saved_excerpt_ids.length > 0) {
-                        const runLabel = response.analysis_name || analysisName;
+                        const runLabel = response.analysis_name || selectedAnalysisLabel;
                         $('#analysisResults').html(`
                             <div class="card-body">
                                 <p class="text-success mb-0">
@@ -2164,9 +2276,22 @@
             });
         }
 
+        populateAnalysisNameSelect(availableAnalyses);
         updateAnalyzeButtonState();
         $('#mediaSelect, #codebookSelect').on('change', updateAnalyzeButtonState);
-        $('#analysisName').on('input', updateAnalyzeButtonState);
+        $analysisNameInput.on('input', function () {
+            if ($analysisNameInput.prop('disabled')) {
+                return;
+            }
+            pendingAnalysisName = $(this).val();
+            updateAnalyzeButtonState();
+        });
+        $analysisNameSelect.on('change', syncAnalysisSelectionUI);
+        $('#clearAnalysisSelection').on('click', function (e) {
+            e.preventDefault();
+            $analysisNameSelect.val('');
+            syncAnalysisSelectionUI();
+        });
     });
 </script>
 {% endblock %}

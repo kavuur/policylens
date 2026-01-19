@@ -1231,6 +1231,21 @@ def view_project(project_id):
             'owner_name': owner_name,
             'created_label': created_label
         })
+    analysis_runs_query = (
+        AnalysisRun.query
+        .filter(AnalysisRun.project_id == project.id)
+        .order_by(AnalysisRun.created_at.desc())
+    )
+    analysis_runs = []
+    for run in analysis_runs_query.all():
+        created_label = run.created_at.strftime('%b %d, %Y') if run.created_at else 'Unknown date'
+        analysis_runs.append({
+            'id': run.id,
+            'name': run.name or f'Analysis {run.id}',
+            'notes': run.notes or '',
+            'created_at': run.created_at.isoformat() if run.created_at else None,
+            'created_label': created_label
+        })
     if hasattr(project, 'excerpts'):
         project.excerpts.sort(key=lambda x: x.created_at, reverse=True)
     return render_template('projects/view.html',
@@ -1240,7 +1255,8 @@ def view_project(project_id):
                            collaborators=collaborators,
                            is_owner=is_owner,
                            can_manage_project=can_manage_project,
-                           shared_codebooks=shared_codebooks)
+                           shared_codebooks=shared_codebooks,
+                           analysis_runs=analysis_runs)
 
 @app.route('/projects/new', methods=['GET', 'POST'])
 @login_required
@@ -2521,7 +2537,8 @@ def get_excerpts():
             analysis_options.append({
                 'id': analysis_id,
                 'name': group.get('analysis_name') or 'Analysis Run',
-                'notes': group.get('notes') or ''
+                'notes': group.get('notes') or '',
+                'created_at': group.get('created_at')
             })
 
         return jsonify({
@@ -3015,6 +3032,7 @@ def analyze_project():
         project_id = data.get('project_id')
         analysis_name = (data.get('analysis_name') or '').strip()
         analysis_notes = (data.get('analysis_notes') or '').strip()
+        raw_analysis_id = data.get('analysis_id')
 
         app.logger.info(
             f"[analyze] user={current_user.id} project={project_id} "
@@ -3027,9 +3045,8 @@ def analyze_project():
                 'error': 'Missing required fields: media_ids, codebook_id, or project_id'
             }), 400
 
-        if not analysis_name:
-            app.logger.warning("[analyze] missing analysis_name")
-            return jsonify({'error': 'Analysis name is required'}), 400
+        analysis_run = None
+        analysis_id = None
 
         project = db.session.get(Project, project_id)
         if not project:
@@ -3048,6 +3065,28 @@ def analyze_project():
         if codebook.project_id != project_id:
             app.logger.warning(f"[analyze] codebook={codebook_id} not in project={project_id}")
             return jsonify({'error': 'Codebook does not belong to this project'}), 400
+
+        if raw_analysis_id not in (None, '', '0', 0):
+            try:
+                analysis_id = int(raw_analysis_id)
+            except (TypeError, ValueError):
+                app.logger.warning(f"[analyze] invalid analysis_id supplied: {raw_analysis_id}")
+                return jsonify({'error': 'Invalid analysis selection'}), 400
+
+            analysis_run = db.session.get(AnalysisRun, analysis_id)
+            if not analysis_run or analysis_run.project_id != project_id:
+                app.logger.warning(
+                    f"[analyze] analysis_id={analysis_id} not found for project={project_id}"
+                )
+                return jsonify({'error': 'Selected analysis is unavailable for this project'}), 404
+
+            analysis_name = analysis_run.name or analysis_name
+            app.logger.info(
+                f"[analyze] appending to analysis_id={analysis_run.id} name={analysis_name!r}"
+            )
+        elif not analysis_name:
+            app.logger.warning("[analyze] missing analysis_name and no existing analysis selected")
+            return jsonify({'error': 'Analysis name is required'}), 400
 
         valid_media = (
             db.session.query(Media)
@@ -3108,25 +3147,42 @@ def analyze_project():
         )
 
         saved_excerpt_ids = []
-        analysis_run = None
-        analysis_id = None
+        created_analysis_run = False
         if valid_excerpts:
-            media_snapshot = [
-                {'id': m.id, 'filename': m.filename}
-                for m in valid_media
-            ]
-            analysis_run = AnalysisRun(
-                project_id=project_id,
-                codebook_id=codebook_id,
-                user_id=current_user.id,
-                name=analysis_name,
-                notes=analysis_notes or None,
-                media_snapshot=media_snapshot,
-                visibility=project.visibility
-            )
-            db.session.add(analysis_run)
-            db.session.commit()
-            analysis_id = analysis_run.id
+            if analysis_run:
+                existing_snapshot = list(analysis_run.media_snapshot or [])
+                existing_ids = {
+                    item.get('id') for item in existing_snapshot
+                    if isinstance(item, dict) and item.get('id') is not None
+                }
+                new_entries = [
+                    {'id': m.id, 'filename': m.filename}
+                    for m in valid_media
+                    if m.id not in existing_ids
+                ]
+                if new_entries:
+                    existing_snapshot.extend(new_entries)
+                    analysis_run.media_snapshot = existing_snapshot
+                    db.session.commit()
+                analysis_id = analysis_run.id
+            else:
+                media_snapshot = [
+                    {'id': m.id, 'filename': m.filename}
+                    for m in valid_media
+                ]
+                analysis_run = AnalysisRun(
+                    project_id=project_id,
+                    codebook_id=codebook_id,
+                    user_id=current_user.id,
+                    name=analysis_name,
+                    notes=analysis_notes or None,
+                    media_snapshot=media_snapshot,
+                    visibility=project.visibility
+                )
+                db.session.add(analysis_run)
+                db.session.commit()
+                analysis_id = analysis_run.id
+                created_analysis_run = True
 
             payload = {
                 'project_id': project_id,
@@ -3150,7 +3206,7 @@ def analyze_project():
                     save_r.status_code, body_json, body_text
                 )
 
-                if analysis_run:
+                if analysis_run and created_analysis_run:
                     db.session.delete(analysis_run)
                     db.session.commit()
 
@@ -3181,7 +3237,7 @@ def analyze_project():
             'explanation': explanation,
             'saved_excerpt_ids': saved_excerpt_ids,
             'analysis_run_id': analysis_id,
-            'analysis_name': analysis_name if saved_excerpt_ids else None
+            'analysis_name': (analysis_run.name if analysis_run else analysis_name) if saved_excerpt_ids else None
         })
 
     except Exception as e:

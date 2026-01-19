@@ -1,5 +1,6 @@
 {% extends "base.html" %}{% block title %}Edit Codes - {{ codebook.name }} - Policy Lens{% endblock %}{% block content
 %}<div class="container">
+    {% set can_manage_codebook = (codebook.user_id == current_user.id) or (current_user.is_admin and not current_user.is_view_only_admin) %}
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ url_for('list_codebooks') }}">Codebooks</a></li>
@@ -48,7 +49,7 @@
                             <td><strong>{{ code.code }}</strong></td>
                             <td class="text-muted">{{ code.description or '' }}</td>
                             <td class="text-center">
-                                {% if not current_user.is_view_only_admin %}
+                                {% if can_manage_codebook %}
                                 <button class="btn btn-outline-primary btn-sm edit-btn" title="Edit Code"><i
                                         class="fas fa-edit"></i></button>
                                 <button class="btn btn-outline-danger btn-sm delete-btn" title="Delete Code"><i
@@ -67,7 +68,7 @@
                                 subcode.subcode }}</td>
                             <td class="text-muted">{{ subcode.description or '' }}</td>
                             <td class="text-center">
-                                {% if not current_user.is_view_only_admin %}
+                                {% if can_manage_codebook %}
                                 <button class="btn btn-outline-primary btn-sm edit-btn" title="Edit Subcode"><i
                                         class="fas fa-edit"></i></button>
                                 <button class="btn btn-outline-danger btn-sm delete-btn" title="Delete Subcode"><i
@@ -86,7 +87,7 @@
                                 subsubcode.subsubcode }}</td>
                             <td class="text-muted">{{ subsubcode.description or '' }}</td>
                             <td class="text-center">
-                                {% if not current_user.is_view_only_admin %}
+                                {% if can_manage_codebook %}
                                 <button class="btn btn-outline-primary btn-sm edit-btn" title="Edit Sub-Subcode"><i
                                         class="fas fa-edit"></i></button>
                                 <button class="btn btn-outline-danger btn-sm delete-btn" title="Delete Sub-Subcode"><i
@@ -100,7 +101,7 @@
                     </tbody>
                 </table>
             </div>
-            {% if not current_user.is_view_only_admin %}
+            {% if can_manage_codebook %}
             <button type="button" class="btn btn-success mt-3 add-btn" data-level="code"
                 data-parent-id="{{ codebook.id }}">
                 <i class="fas fa-plus me-1"></i> Add New Code

@@ -102,7 +102,7 @@ a.text-danger:hover {
 }
 
 .app-sidebar {
-    width: 86px;
+    width: 72px;
     transition: width 0.25s ease;
     position: relative;
     z-index: 60;
@@ -110,12 +110,12 @@ a.text-danger:hover {
 }
 
 body.sidebar-pinned .app-sidebar {
-    width: 275px;
+    width: 240px;
 }
 
 body:not(.sidebar-pinned) .app-sidebar:hover,
 body:not(.sidebar-pinned) .app-sidebar:focus-within {
-    width: 275px;
+    width: 240px;
 }
 
 .sidebar-inner {

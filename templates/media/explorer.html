@@ -42,100 +42,102 @@
 
 {% block media_content %}
 {% set current_project = projects|selectattr('id', 'equalto', current_project_id)|first %}
-<div class="explorer-container container-fluid p-0">
-    <div class="explorer-shell" id="mediaExplorerShell">
-        <aside class="explorer-sidebar" id="workspaceSidebar">
-            <div class="workspace-header">
-                <h6 class="mb-0 text-uppercase text-muted small fw-bold workspace-title">Workspaces</h6>
-                <div class="workspace-actions">
-                    <a href="#" class="btn btn-sm btn-primary rounded-pill px-3 workspace-new" data-bs-toggle="modal"
-                        data-bs-target="#newProjectModal" title="New Project">
-                        <i class="fas fa-plus fa-xs"></i>
-                        <span class="workspace-label">New</span>
-                    </a>
-                </div>
-            </div>
-            <div class="list-group list-group-flush explorer-nav-list">
-                <a href="{{ url_for('list_media') }}"
-                    class="list-group-item list-group-item-action {% if not current_project_id %}active{% endif %}"
-                    title="All Files">
-                    <span>
-                        <i class="fas fa-inbox"></i>
-                        <span class="workspace-label">All Files</span>
-                    </span>
-                    <span class="badge bg-secondary-subtle text-secondary rounded-pill workspace-count">{{ all_media_count }}</span>
-                </a>
-                {% for project in projects %}
-                <a href="{{ url_for('list_media', project_id=project.id) }}"
-                    class="list-group-item list-group-item-action {% if current_project_id == project.id %}active{% endif %}"
-                    title="{{ project.name }}">
-                    <span>
-                        <i class="fas fa-folder"></i>
-                        <span class="workspace-label">{{ project.name }}</span>
-                    </span>
-                    <span class="badge bg-secondary-subtle text-secondary rounded-pill workspace-count">{{ project.media_count }}</span>
-                </a>
-                {% endfor %}
-            </div>
-        </aside>
-
-        <section class="explorer-main flex-grow-1">
-            <div class="workspace-summary">
-                <div class="workspace-summary-text">
-                    <h4 class="mb-1">{{ current_project.name if current_project else 'All Files' }}</h4>
-                    <p class="text-muted small mb-0">
-                        <span id="fileCount">{{ media_items|length }} items</span>
-                        {% if current_project %}
-                            in {{ current_project.name }}
-                        {% else %}
-                            in your media library
-                        {% endif %}
-                    </p>
-                </div>
-                <div class="workspace-summary-actions">
-                    <div class="input-group search-box">
-                        <span class="input-group-text">
-                            <i class="fas fa-search"></i>
-                        </span>
-                        <input type="text" class="form-control" id="searchInput" placeholder="Search files"
-                            aria-label="Search files">
-                        <button class="btn btn-outline-secondary" type="button" id="clearSearch" title="Clear search"
-                            aria-label="Clear search">
-                            <i class="fas fa-times"></i>
-                        </button>
+<div class="media-page-shell explorer-shell container-fluid px-0 px-lg-3">
+    <aside class="explorer-sidebar" id="workspaceSidebar">
+                    <div class="workspace-header">
+                        <h6 class="mb-0 text-uppercase text-muted small fw-bold workspace-title">Workspaces</h6>
+                        <div class="workspace-actions">
+                            <a href="#" class="btn btn-sm btn-primary rounded-pill px-3 workspace-new" data-bs-toggle="modal"
+                                data-bs-target="#newProjectModal" title="New Project">
+                                <i class="fas fa-plus fa-xs"></i>
+                                <span class="workspace-label">New</span>
+                            </a>
+                        </div>
                     </div>
-                    <div class="btn-group view-toggle" role="group" aria-label="View toggle">
-                        <button type="button" class="btn btn-outline-secondary active" id="listViewBtn" title="List view"
-                            aria-pressed="true">
-                            <i class="fas fa-list"></i>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" id="gridViewBtn" title="Grid view"
-                            aria-pressed="false">
-                            <i class="fas fa-th"></i>
-                        </button>
+                    <div class="list-group list-group-flush explorer-nav-list">
+                        <a href="{{ url_for('list_media') }}"
+                            class="list-group-item list-group-item-action {% if not current_project_id %}active{% endif %}"
+                            title="All Files">
+                            <span>
+                                <i class="fas fa-inbox"></i>
+                                <span class="workspace-label">All Files</span>
+                            </span>
+                            <span class="badge bg-secondary-subtle text-secondary rounded-pill workspace-count">{{ all_media_count }}</span>
+                        </a>
+                        {% for project in projects %}
+                        <a href="{{ url_for('list_media', project_id=project.id) }}"
+                            class="list-group-item list-group-item-action {% if current_project_id == project.id %}active{% endif %}"
+                            title="{{ project.name }}">
+                            <span>
+                                <i class="fas fa-folder"></i>
+                                <span class="workspace-label">{{ project.name }}</span>
+                            </span>
+                            <span class="badge bg-secondary-subtle text-secondary rounded-pill workspace-count">{{ project.media_count }}</span>
+                        </a>
+                        {% endfor %}
                     </div>
-                    <button class="btn btn-light workspace-pin-btn" type="button" id="workspacePinBtn" aria-pressed="false"
-                        title="Pin workspace rail" aria-label="Pin workspace rail">
-                        <i class="fas fa-thumbtack me-1"></i>
-                        <span class="d-none d-md-inline">Workspace</span>
-                    </button>
-                    {% if current_user.is_authenticated and (not current_user.is_view_only_admin) %}
-                    <a href="{{ url_for('upload_media') }}" class="btn btn-primary upload-btn" title="Upload media">
-                        <i class="fas fa-upload me-2"></i>
-                        <span class="workspace-label">Upload</span>
-                    </a>
-                    {% endif %}
-                </div>
-            </div>
+    </aside>
 
-            <div class="files-content">
-                <div class="table-scroll" id="listView">
-                    {% if media_items %}
-                    <div class="media-table-wrapper">
-                    <table class="table modern-table media-table align-middle mb-0">
+    <section class="explorer-main flex-grow-1">
+                    <div class="workspace-summary-card list-card info-card">
+                        <div class="workspace-summary">
+                            <div class="workspace-summary-text">
+                                <h4 class="mb-1">{{ current_project.name if current_project else 'All Files' }}</h4>
+                                <p class="text-muted small mb-0">
+                                    <span id="fileCount">{{ media_items|length }} items</span>
+                                    {% if current_project %}
+                                        in {{ current_project.name }}
+                                    {% else %}
+                                        in your media library
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="workspace-summary-actions">
+                                <div class="input-group search-box">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                    <input type="text" class="form-control" id="searchInput" placeholder="Search files"
+                                        aria-label="Search files">
+                                    <button class="btn btn-outline-secondary" type="button" id="clearSearch" title="Clear search"
+                                        aria-label="Clear search">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="btn-group view-toggle" role="group" aria-label="View toggle">
+                                    <button type="button" class="btn btn-outline-secondary active" id="listViewBtn" title="List view"
+                                        aria-pressed="true">
+                                        <i class="fas fa-list"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="gridViewBtn" title="Grid view"
+                                        aria-pressed="false">
+                                        <i class="fas fa-th"></i>
+                                    </button>
+                                </div>
+                                <button class="btn btn-light workspace-pin-btn" type="button" id="workspacePinBtn" aria-pressed="false"
+                                    title="Pin workspace rail" aria-label="Pin workspace rail">
+                                    <i class="fas fa-thumbtack me-1"></i>
+                                    <span class="d-none d-md-inline">Workspace</span>
+                                </button>
+                                {% if current_user.is_authenticated and (not current_user.is_view_only_admin) %}
+                                <a href="{{ url_for('upload_media') }}" class="btn btn-primary upload-btn" title="Upload media">
+                                    <i class="fas fa-upload me-2"></i>
+                                    <span class="workspace-label">Upload</span>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="media-list-card list-card info-card">
+                        <div class="media-scroll-panel" id="mediaScrollPanel">
+                            <div id="listView" class="media-table-panel">
+                                {% if media_items %}
+                                <div class="table-responsive media-table-responsive">
+                                    <table class="table modern-table media-table align-middle mb-0">
                         <thead>
                             <tr>
-                                <th style="width: 18%;">Name</th>
+                                <th class="media-name-col">Name</th>
                                 <th style="width: 18%;">Owner</th>
                                 <th style="width: 16%;">Date Added</th>
                                 <th style="width: 12%;">Size</th>
@@ -147,16 +149,20 @@
                             {% set can_manage_file = (media.user_id == current_user.id) or (current_user.is_admin and not current_user.is_view_only_admin) %}
                             <tr class="media-item" data-filename="{{ media.filename|lower }}">
                                 <td class="media-name-cell">
-                                    <div class="d-flex align-items-center gap-3">
+                                    {% set filename_parts = media.filename.rsplit('.', 1) %}
+                                    {% set base_filename = filename_parts[0]|replace('_', ' ')|replace('-', ' ') %}
+                                    {% set file_extension = (filename_parts[1]|upper) if filename_parts|length > 1 else (media.file_type or 'FILE') %}
+                                    <div class="media-name-stack d-flex gap-3">
                                         <div class="file-icon">
                                             {{ file_icon(media) }}
                                         </div>
                                         <div class="file-info">
                                             <a href="{{ url_for('view_media', media_id=media.id) }}"
-                                                class="file-name text-decoration-none fw-semibold">
-                                                {{ media.filename }}
+                                                class="file-name text-decoration-none fw-semibold"
+                                                title="{{ media.filename }}">
+                                                {{ base_filename }}
                                             </a>
-                                            <div class="text-muted small text-uppercase">{{ media.file_type or 'File' }}</div>
+                                            <div class="file-extension text-muted small text-uppercase">{{ file_extension }}</div>
                                         </div>
                                     </div>
                                 </td>
@@ -198,88 +204,90 @@
                             </tr>
                             {% endfor %}
                         </tbody>
-                    </table>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <div class="file-grid" id="gridView" style="display: none;">
-                    {% for media in media_items %}
-                    {% set can_manage_file = (media.user_id == current_user.id) or (current_user.is_admin and not current_user.is_view_only_admin) %}
-                    <div class="file-card media-item" data-filename="{{ media.filename|lower }}">
-                        <div class="file-card-icon">
-                            {{ file_icon(media) }}
-                        </div>
-                        <div class="file-card-name" title="{{ media.filename }}">{{ media.filename }}</div>
-                        <div class="file-card-meta">
-                            <span class="d-block">
-                                {{ media.uploaded_at.strftime('%b %d, %Y') if media.uploaded_at else '—' }}
-                            </span>
-                            <span>
-                                {% if media.file_size %}
-                                    {{ (media.file_size / 1024)|round(1) }} KB
-                                {% else %}
-                                    —
+                                    </table>
+                                </div>
                                 {% endif %}
-                            </span>
-                            <div class="text-muted small">Owner: {{ file_owner(media)|trim }}</div>
-                        </div>
-                        <div class="file-card-actions action-button-set justify-content-center">
-                            <a href="{{ url_for('view_media', media_id=media.id) }}"
-                                class="btn btn-sm btn-action btn-action-view" title="View">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            <a href="{{ url_for('download_media', media_id=media.id) }}"
-                                class="btn btn-sm btn-action btn-action-download" title="Download">
-                                <i class="fas fa-download"></i>
-                            </a>
-                            {% if can_manage_file %}
-                            <a href="{{ url_for('edit_descriptors', media_id=media.id) }}"
-                                class="btn btn-sm btn-action btn-action-edit" title="Edit Details">
-                                <i class="fas fa-pen"></i>
-                            </a>
-                            <button class="btn btn-sm btn-action btn-action-delete delete-media" data-id="{{ media.id }}"
-                                data-filename="{{ media.filename }}" title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                            </div>
+
+                            <div class="file-grid" id="gridView" style="display: none;">
+                                {% for media in media_items %}
+                                {% set can_manage_file = (media.user_id == current_user.id) or (current_user.is_admin and not current_user.is_view_only_admin) %}
+                                {% set filename_parts = media.filename.rsplit('.', 1) %}
+                                {% set base_filename = filename_parts[0]|replace('_', ' ')|replace('-', ' ') %}
+                                {% set file_extension = (filename_parts[1]|upper) if filename_parts|length > 1 else (media.file_type or 'FILE') %}
+                                <div class="file-card media-item" data-filename="{{ media.filename|lower }}">
+                                    <div class="file-card-icon">
+                                        {{ file_icon(media) }}
+                                    </div>
+                                    <div class="file-card-name" title="{{ media.filename }}">{{ base_filename }}</div>
+                                    <div class="file-card-meta small text-muted d-flex flex-column gap-1">
+                                        <div class="text-uppercase fw-semibold">{{ file_extension }}</div>
+                                        <div>{{ file_owner(media)|trim }}</div>
+                                        <div>{{ media.uploaded_at.strftime('%b %d, %Y') if media.uploaded_at else '—' }}</div>
+                                        <div>
+                                            {% if media.file_size %}
+                                                {{ (media.file_size / 1024)|round(1) }} KB
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="file-card-actions">
+                                        <a href="{{ url_for('view_media', media_id=media.id) }}"
+                                            class="btn btn-sm btn-action btn-action-view" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('download_media', media_id=media.id) }}"
+                                            class="btn btn-sm btn-action btn-action-download" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                        {% if can_manage_file %}
+                                        <a href="{{ url_for('edit_descriptors', media_id=media.id) }}"
+                                            class="btn btn-sm btn-action btn-action-edit" title="Edit Details">
+                                            <i class="fas fa-pen"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-action btn-action-delete delete-media" data-id="{{ media.id }}"
+                                            data-filename="{{ media.filename }}" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="alert alert-warning no-results text-center shadow-sm mt-3" style="display: none;">
+                                <i class="fas fa-search me-2"></i>No files match your search.
+                            </div>
+
+                            {% if not media_items %}
+                            <div class="empty-state text-center py-5 mt-4">
+                                <div class="empty-icon mb-4">
+                                    <i class="fas fa-cloud-upload-alt fa-4x text-primary opacity-25"></i>
+                                </div>
+                                <h5 class="fw-bold text-dark mb-2">No files yet</h5>
+                                <p class="text-muted mb-4">Upload documents, images, or media to get started.</p>
+                                <a href="{{ url_for('upload_media') }}" class="btn btn-primary px-4 rounded-pill">
+                                    <i class="fas fa-plus me-2"></i>Upload File
+                                </a>
+                            </div>
                             {% endif %}
                         </div>
-                    </div>
-                    {% endfor %}
-                </div>
 
-                <div class="alert alert-warning no-results text-center shadow-sm mt-3" style="display: none;">
-                    <i class="fas fa-search me-2"></i>No files match your search.
-                </div>
-
-                {% if not media_items %}
-                <div class="empty-state text-center py-5 mt-4">
-                    <div class="empty-icon mb-4">
-                        <i class="fas fa-cloud-upload-alt fa-4x text-primary opacity-25"></i>
+                        {% if media_items %}
+                        <div class="status-bar mt-3 pt-3 border-top">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            <span id="statusText">{{ media_items|length }} items</span>
+                        </div>
+                        <div class="text-muted small">
+                            Total size: <span id="totalSize">{{ (media_items|sum(attribute='file_size') / 1024)|round(1) }} KB</span>
+                        </div>
                     </div>
-                    <h5 class="fw-bold text-dark mb-2">No files yet</h5>
-                    <p class="text-muted mb-4">Upload documents, images, or media to get started.</p>
-                    <a href="{{ url_for('upload_media') }}" class="btn btn-primary px-4 rounded-pill">
-                        <i class="fas fa-plus me-2"></i>Upload File
-                    </a>
-                </div>
-                {% endif %}
-            </div>
-
-            {% if media_items %}
-            <div class="status-bar mt-3 pt-3 border-top px-3 pb-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="text-muted small">
-                        <span id="statusText">{{ media_items|length }} items</span>
+                        </div>
+                        {% endif %}
                     </div>
-                    <div class="text-muted small">
-                        Total size: <span id="totalSize">{{ (media_items|sum(attribute='file_size') / 1024)|round(1) }} KB</span>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
         </section>
-    </div>
 </div>
 
 <!-- Modals -->
@@ -336,24 +344,16 @@
 {{ super() }}
 <style>
     .media-page-shell {
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
+        width: 100%;
         min-height: calc(100vh - 110px);
     }
 
-    .explorer-container {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        background: var(--color-bg);
-    }
-
     .explorer-shell {
+        flex: 1;
         display: flex;
         gap: 1.25rem;
         width: 100%;
+        min-height: 0;
     }
 
     .explorer-shell.workspace-pinned .explorer-sidebar {
@@ -406,11 +406,18 @@
     .explorer-main {
         flex: 1;
         min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .workspace-summary-card {
+        padding: 1.25rem 1.5rem;
         border-radius: 20px;
         border: 1px solid var(--color-border);
-        background: var(--color-bg);
-        padding: 1.5rem;
-        box-shadow: 0 10px 30px rgba(var(--shadow-card-color-rgb), 0.12);
+        background: var(--color-surface);
+        box-shadow: 0 12px 32px rgba(var(--shadow-card-color-rgb), 0.12);
     }
 
     .workspace-summary {
@@ -419,11 +426,6 @@
         justify-content: space-between;
         flex-wrap: wrap;
         gap: 0.75rem;
-        margin-bottom: 1.25rem;
-        padding: 1rem 1.25rem;
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: 18px;
     }
 
     .workspace-summary-actions {
@@ -473,46 +475,80 @@
         border-radius: 0 999px 999px 0;
     }
 
-    .files-content {
+    .media-list-card {
         background: var(--color-surface);
-        border-radius: 18px;
+        border-radius: 20px;
         border: 1px solid var(--color-border);
         padding: 1.5rem;
         box-shadow: 0 15px 35px rgba(var(--shadow-card-color-rgb), 0.12);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
     }
 
-    .table-scroll {
+    .media-list-card .status-bar {
+        background: transparent;
+        border-radius: 0;
+        padding: 0.5rem 0;
+    }
+
+    .media-scroll-panel {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 0.5rem;
+        margin-right: -0.5rem;
+    }
+
+    .media-table-panel {
+        width: 100%;
+        min-width: 0;
+        flex: 1;
+        min-height: 0;
+    }
+
+    .media-table-responsive {
         width: 100%;
         max-width: 100%;
-        min-width: 0;
         overflow-x: auto;
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
         padding-bottom: 0.35rem;
     }
 
-    .table-scroll::-webkit-scrollbar {
+    .media-table-responsive::-webkit-scrollbar {
         height: 8px;
     }
 
-    .table-scroll::-webkit-scrollbar-track {
+    .media-table-responsive::-webkit-scrollbar-track {
         background: rgba(var(--shadow-card-color-rgb), 0.08);
         border-radius: 999px;
     }
 
-    .table-scroll::-webkit-scrollbar-thumb {
+    .media-table-responsive::-webkit-scrollbar-thumb {
         background: rgba(var(--color-primary-rgb), 0.35);
         border-radius: 999px;
     }
 
-    .media-table-wrapper {
-        width: 100%;
-        min-width: 1200px;
-    }
-
     .media-table {
         width: 100%;
+        min-width: 1100px;
     }
+
+    .media-table .media-name-col {
+        width: clamp(150px, 15vw, 220px);
+    }
+
+    .media-name-cell {
+        max-width: clamp(150px, 18vw, 240px);
+    }
+
+    .media-name-stack {
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
 
     .modern-table thead th {
         background-color: var(--color-surface-muted);
@@ -543,14 +579,27 @@
     .media-name-cell .file-info {
         flex: 1 1 auto;
         min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
     }
 
     .media-name-cell .file-name {
-        display: block;
+        display: -webkit-box;
         max-width: 100%;
         white-space: normal;
+        overflow-wrap: anywhere;
         word-break: break-word;
+        line-height: 1.25;
+        hyphens: auto;
         color: var(--color-text);
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+    }
+
+    .file-extension {
+        letter-spacing: 0.08em;
     }
 
     .file-icon {
@@ -693,7 +742,7 @@
 {% set active_project = projects|selectattr('id', 'equalto', current_project_id)|first %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const explorerShell = document.getElementById('mediaExplorerShell');
+        const explorerShell = document.querySelector('.media-page-shell');
         const workspacePinBtn = document.getElementById('workspacePinBtn');
         const workspacePinnedKey = 'policylens.media.workspace.pinned';
 

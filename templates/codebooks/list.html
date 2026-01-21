@@ -47,13 +47,33 @@
             </form>
         </div>
 
+        <style>
+            .codebooks-table .project-col {
+                width: 14%;
+            }
+
+            .codebooks-table .project-col .project-col-content {
+                display: inline-flex;
+                flex-direction: column;
+                gap: 0.15rem;
+                max-width: 160px;
+                white-space: normal;
+                text-align: left;
+            }
+
+            .codebooks-table .project-col .badge {
+                white-space: normal;
+                line-height: 1.2;
+            }
+        </style>
+
         <div class="table-responsive">
-            <table class="table table-hover mb-0 list-table">
+            <table class="table table-hover mb-0 list-table codebooks-table">
                 <thead class="table-light">
                     <tr>
                         <th width="50">#</th>
                         <th>Name</th>
-                        <th>Project</th>
+                        <th class="project-col">Project</th>
                         <th>Description</th>
                         <th>Created</th>
                         <th width="120">Actions</th>
@@ -67,12 +87,14 @@
                         <td>
                             <strong>{{ codebook.name }}</strong>
                         </td>
-                        <td>
+                        <td class="project-col">
+                            <div class="project-col-content">
                             {% if codebook.project %}
                             <span class="badge bg-secondary">{{ codebook.project.name }}</span>
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}
+                            </div>
                         </td>
                         <td>
                             {% if codebook.description %}

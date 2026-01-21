@@ -131,6 +131,7 @@
             <div class="files-content">
                 <div class="table-scroll" id="listView">
                     {% if media_items %}
+                    <div class="media-table-wrapper">
                     <table class="table modern-table media-table align-middle mb-0">
                         <thead>
                             <tr>
@@ -198,6 +199,7 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                    </div>
                     {% endif %}
                 </div>
 
@@ -481,14 +483,35 @@
 
     .table-scroll {
         width: 100%;
+        max-width: 100%;
         min-width: 0;
         overflow-x: auto;
+        overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
+        padding-bottom: 0.35rem;
+    }
+
+    .table-scroll::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .table-scroll::-webkit-scrollbar-track {
+        background: rgba(var(--shadow-card-color-rgb), 0.08);
+        border-radius: 999px;
+    }
+
+    .table-scroll::-webkit-scrollbar-thumb {
+        background: rgba(var(--color-primary-rgb), 0.35);
+        border-radius: 999px;
+    }
+
+    .media-table-wrapper {
+        width: 100%;
+        min-width: 1200px;
     }
 
     .media-table {
-        min-width: 1200px;
-        width: max(1200px, 100%);
+        width: 100%;
     }
 
     .modern-table thead th {

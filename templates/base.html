@@ -166,7 +166,8 @@
                 {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                 {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert"
+                    data-auto-dismiss="true" data-dismiss-delay="4500">
                     {{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
@@ -251,6 +252,19 @@
                 if (!clickedSidebar && !clickedToggle) {
                     body.classList.remove('sidebar-mobile-open');
                 }
+            });
+
+            const autoDismissAlerts = document.querySelectorAll('.alert[data-auto-dismiss="true"]');
+            autoDismissAlerts.forEach(alertEl => {
+                const delay = parseInt(alertEl.dataset.dismissDelay || '4500', 10);
+                window.setTimeout(() => {
+                    if (typeof bootstrap !== 'undefined' && bootstrap.Alert) {
+                        bootstrap.Alert.getOrCreateInstance(alertEl).close();
+                    } else {
+                        alertEl.classList.remove('show');
+                        alertEl.addEventListener('transitionend', () => alertEl.remove(), { once: true });
+                    }
+                }, delay);
             });
         });
         // AJAX error handling

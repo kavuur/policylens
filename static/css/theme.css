@@ -396,6 +396,7 @@ body:not(.sidebar-pinned) .main-content {
     padding-right: clamp(0.75rem, 1.5vw, 1.5rem);
 }
 
+
 .card,
 .info-card,
 .modal-content {
@@ -475,22 +476,33 @@ textarea::placeholder {
     border-color: var(--color-primary-dark);
 }
 
-.btn-danger,
-.btn-outline-danger {
+.btn-danger {
     background: var(--color-danger);
     border-color: var(--color-danger);
     color: var(--color-contrast-light);
 }
 
-.btn-danger:hover,
-.btn-outline-danger:hover {
+.btn-danger:hover {
     background: var(--color-accent);
     border-color: var(--color-accent);
-    color: var(--color-contrast-light);
 }
 
 .btn-outline-danger {
+    color: var(--color-danger);
+    border-color: rgba(var(--color-danger-rgb), 0.6);
     background: transparent;
+}
+
+.btn-outline-danger:hover,
+.btn-outline-danger:focus-visible {
+    background: rgba(var(--color-danger-rgb), 0.1);
+    color: var(--color-danger);
+}
+
+.btn-outline-danger .fa-times,
+.btn-outline-danger .fa-xmark,
+.btn-outline-danger .fa-close {
+    color: currentColor;
 }
 
 .btn-outline-secondary,
@@ -599,6 +611,30 @@ textarea::placeholder {
     border: 1px solid var(--color-border);
     background: var(--color-surface);
     color: var(--color-text);
+}
+
+.alert-success {
+    background: rgba(var(--color-primary-rgb), 0.16);
+    border-color: rgba(var(--color-primary-rgb), 0.45);
+    color: var(--color-primary-dark);
+}
+
+.alert-danger {
+    background: rgba(var(--color-danger-rgb), 0.18);
+    border-color: rgba(var(--color-danger-rgb), 0.5);
+    color: var(--color-danger);
+}
+
+.alert-warning {
+    background: rgba(var(--color-warning-rgb), 0.22);
+    border-color: rgba(var(--color-warning-rgb), 0.55);
+    color: var(--color-contrast-dark);
+}
+
+.alert-info {
+    background: rgba(var(--color-info-rgb), 0.18);
+    border-color: rgba(var(--color-info-rgb), 0.45);
+    color: var(--color-info);
 }
 
 .badge {

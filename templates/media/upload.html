@@ -114,8 +114,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <input type="text" name="descriptor_value_${id}" 
                        class="form-control" placeholder="Value" value="${value}">
             </div>
-            <div class="col-md-1">
-                <button type="button" class="btn btn-outline-danger btn-sm remove-descriptor">
+            <div class="col-md-1 d-flex justify-content-center align-items-start">
+                <button type="button" class="btn btn-outline-danger btn-sm remove-descriptor" title="Remove descriptor"
+                        aria-label="Remove descriptor">
                     <i class="fas fa-times"></i>
                 </button>
             </div>

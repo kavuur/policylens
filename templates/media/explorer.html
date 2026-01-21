@@ -1,6 +1,47 @@
 {% extends "media/base.html" %}
 
+{% macro file_icon(media) -%}
+    {% set file_type = (media.file_type or '')|lower %}
+    {% set icon_class = 'fa-file' %}
+    {% set icon_color_class = 'file-icon-color-default' %}
+    {% if 'pdf' in file_type %}
+        {% set icon_class = 'fa-file-pdf' %}
+        {% set icon_color_class = 'file-icon-color-pdf' %}
+    {% elif 'word' in file_type or 'doc' in file_type %}
+        {% set icon_class = 'fa-file-word' %}
+        {% set icon_color_class = 'file-icon-color-word' %}
+    {% elif 'excel' in file_type or 'sheet' in file_type %}
+        {% set icon_class = 'fa-file-excel' %}
+        {% set icon_color_class = 'file-icon-color-excel' %}
+    {% elif 'powerpoint' in file_type or 'presentation' in file_type %}
+        {% set icon_class = 'fa-file-powerpoint' %}
+        {% set icon_color_class = 'file-icon-color-ppt' %}
+    {% elif 'video' in file_type %}
+        {% set icon_class = 'fa-file-video' %}
+        {% set icon_color_class = 'file-icon-color-video' %}
+    {% elif 'audio' in file_type %}
+        {% set icon_class = 'fa-file-audio' %}
+        {% set icon_color_class = 'file-icon-color-audio' %}
+    {% elif 'zip' in file_type or 'compressed' in file_type %}
+        {% set icon_class = 'fa-file-archive' %}
+        {% set icon_color_class = 'file-icon-color-archive' %}
+    {% elif 'text' in file_type %}
+        {% set icon_class = 'fa-file-alt' %}
+        {% set icon_color_class = 'file-icon-color-text' %}
+    {% endif %}
+    <i class="fas {{ icon_class }} {{ icon_color_class }}"></i>
+{%- endmacro %}
+
+{% macro file_owner(media) -%}
+    {%- if media.user -%}
+        {{ media.user.username if media.user.is_view_only_admin else (media.user.name or media.user.username or media.user.email) }}
+    {%- else -%}
+        Unassigned
+    {%- endif -%}
+{%- endmacro %}
+
 {% block media_content %}
+{% set current_project = projects|selectattr('id', 'equalto', current_project_id)|first %}
 <div class="explorer-container container-fluid p-0">
     <div class="explorer-shell" id="mediaExplorerShell">
         <aside class="explorer-sidebar" id="workspaceSidebar">
@@ -12,10 +53,6 @@
                         <i class="fas fa-plus fa-xs"></i>
                         <span class="workspace-label">New</span>
                     </a>
-                    <button type="button" class="icon-btn" id="workspacePinBtn" aria-pressed="false"
-                        title="Pin workspace rail" aria-label="Pin workspace rail">
-                        <i class="fas fa-thumbtack"></i>
-                    </button>
                 </div>
             </div>
             <div class="list-group list-group-flush explorer-nav-list">
@@ -42,204 +79,101 @@
             </div>
         </aside>
 
-        <div class="explorer-main">
-            <div class="h-100 d-flex flex-column">
-                <div class="workspace-summary">
-                    <div class="workspace-summary-text">
-                        <h4 class="mb-1 text-dark fw-bold">
-                            {% set current_project = projects|selectattr('id', 'equalto', current_project_id)|first %}
-                            <i class="fas fa-{{ 'folder-open' if current_project_id else 'inbox' }} me-2 text-primary"></i>
-                            {{ current_project.name if current_project else 'All Files' }}
-                        </h4>
-                        <p class="text-muted small mb-0" id="fileCount">{{ media_items|length }} items</p>
-                    </div>
-                    <div class="workspace-summary-actions d-flex align-items-center gap-2 flex-wrap justify-content-end">
-                        <div class="btn-group btn-group-sm view-toggle" role="group">
-                            <button type="button" class="btn btn-outline-secondary active" id="listViewBtn"
-                                title="List View">
-                                <i class="fas fa-list"></i>
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary" id="gridViewBtn" title="Grid View">
-                                <i class="fas fa-th-large"></i>
-                            </button>
-                        </div>
-
-                        <div class="input-group input-group-sm search-box">
-                            <span class="input-group-text bg-white border-end-0"><i
-                                    class="fas fa-search text-muted"></i></span>
-                            <input type="text" id="searchInput" class="form-control border-start-0 ps-0"
-                                placeholder="Search files..." value="{{ search_query }}">
-                            <button class="btn btn-outline-secondary border-start-0" type="button" id="clearSearch"
-                                title="Clear Search">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-
-                        <a href="{{ url_for('upload_media') }}" class="btn btn-primary btn-sm px-3 rounded-pill shadow-sm">
-                            <i class="fas fa-cloud-upload-alt me-1"></i> Upload
-                        </a>
-                    </div>
+        <section class="explorer-main flex-grow-1">
+            <div class="workspace-summary">
+                <div class="workspace-summary-text">
+                    <h4 class="mb-1">{{ current_project.name if current_project else 'All Files' }}</h4>
+                    <p class="text-muted small mb-0">
+                        <span id="fileCount">{{ media_items|length }} items</span>
+                        {% if current_project %}
+                            in {{ current_project.name }}
+                        {% else %}
+                            in your media library
+                        {% endif %}
+                    </p>
                 </div>
-
-                <!-- Files Content -->
-                <div class="files-content flex-grow-1">
-                    {% if media_items %}
-
-                    <!-- List View -->
-                    <div id="listView" class="view-mode">
-                        <div class="table-scroll" tabindex="0">
-                            <table class="table table-hover align-middle modern-table media-table">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th style="width: 26%;">Name</th>
-                                        <th style="width: 18%;">Owner</th>
-                                        <th style="width: 16%;">Date Modified</th>
-                                        <th style="width: 10%;">Size</th>
-                                        <th style="width: 30%;" class="text-end">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for media in media_items %}
-                                    <tr class="media-item" data-filename="{{ media.filename|lower }}"
-                                        data-id="{{ media.id }}">
-                                        {% set can_manage = (media.user_id == current_user.id) or (current_user.is_admin and not current_user.is_view_only_admin) %}
-                                        <td class="media-name-cell">
-                                            <div class="d-flex align-items-center">
-                                                <div class="file-icon me-3">
-                                                {% if media.file_type and media.file_type.startswith('image/') %}
-                                                <img src="{{ url_for('uploaded_file', filename=media.filename) }}"
-                                                    alt="thumbnail" class="file-thumbnail">
-                                                {% else %}
-                                                {% set icon_data = {'class': 'fa-file', 'color_class': 'file-icon-color-default'} %}
-                                                {% if media.file_type %}
-                                                {% if 'pdf' in media.file_type %}{% set icon_data = {'class':
-                                                'fa-file-pdf', 'color_class': 'file-icon-color-pdf'} %}
-                                                {% elif 'word' in media.file_type or 'document' in media.file_type %}{%
-                                                set icon_data = {'class': 'fa-file-word', 'color_class': 'file-icon-color-word'} %}
-                                                {% elif 'excel' in media.file_type or 'sheet' in media.file_type %}{%
-                                                set icon_data = {'class': 'fa-file-excel', 'color_class': 'file-icon-color-excel'} %}
-                                                {% elif 'powerpoint' in media.file_type or 'presentation' in
-                                                media.file_type %}{% set icon_data = {'class': 'fa-file-powerpoint',
-                                                'color_class': 'file-icon-color-ppt'} %}
-                                                {% elif 'video' in media.file_type %}{% set icon_data = {'class':
-                                                'fa-file-video', 'color_class': 'file-icon-color-video'} %}
-                                                {% elif 'audio' in media.file_type %}{% set icon_data = {'class':
-                                                'fa-file-audio', 'color_class': 'file-icon-color-audio'} %}
-                                                {% elif 'zip' in media.file_type or 'compressed' in media.file_type %}{%
-                                                set icon_data = {'class': 'fa-file-archive', 'color_class': 'file-icon-color-archive'} %}
-                                                {% elif 'text' in media.file_type %}{% set icon_data = {'class':
-                                                'fa-file-alt', 'color_class': 'file-icon-color-text'} %}
-                                                {% endif %}
-                                                {% endif %}
-                                                <i class="fas {{ icon_data.class }} fa-2x {{ icon_data.color_class }}"></i>
-                                                {% endif %}
-                                            </div>
-                                            <div class="file-info">
-                                                <a href="{{ url_for('view_media', media_id=media.id) }}"
-                                                    class="file-name text-decoration-none text-dark fw-medium"
-                                                    title="{{ media.filename }}">
-                                                    {{ media.filename }}
-                                                </a>
-                                                <div class="file-type small text-muted">{{ media.file_type or 'Unknown'
-                                                    }}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="user-avatar me-2">
-                                                <i class="fas fa-user fa-xs"></i>
-                                            </div>
-                                            {% if media.user %}
-                                            {% set owner_label = media.user.username if media.user.is_view_only_admin else (media.user.name or media.user.username or media.user.email) %}
-                                            <span class="text-muted small">{{ owner_label }}</span>
-                                            {% else %}
-                                            <span class="text-muted small">Unknown</span>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                    <td class="text-muted small">
-                                        {{ media.uploaded_at.strftime('%b %d, %Y') }}
-                                        <div class="text-muted" style="font-size: 0.7em;">{{
-                                            media.uploaded_at.strftime('%I:%M %p') }}</div>
-                                    </td>
-                                    <td class="text-muted small">{{ (media.file_size / 1024)|round(1) }} KB</td>
-                                    <td class="text-end">
-                                        <div class="action-button-set justify-content-end">
-                                            <a href="{{ url_for('view_media', media_id=media.id) }}"
-                                                class="btn btn-sm btn-action btn-action-view" title="View">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            {% if can_manage %}
-                                            <a href="{{ url_for('edit_media', media_id=media.id) }}"
-                                                class="btn btn-sm btn-action btn-action-edit" title="Edit">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            {% endif %}
-                                            <a href="{{ url_for('download_media', media_id=media.id) }}"
-                                                class="btn btn-sm btn-action btn-action-download" title="Download">
-                                                <i class="fas fa-download"></i>
-                                            </a>
-                                            {% if can_manage %}
-                                            <button class="btn btn-sm btn-action btn-action-delete delete-media" data-id="{{ media.id }}"
-                                                data-filename="{{ media.filename }}" title="Delete">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
+                <div class="workspace-summary-actions">
+                    <div class="input-group search-box">
+                        <span class="input-group-text">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" class="form-control" id="searchInput" placeholder="Search files"
+                            aria-label="Search files">
+                        <button class="btn btn-outline-secondary" type="button" id="clearSearch" title="Clear search"
+                            aria-label="Clear search">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
+                    <div class="btn-group view-toggle" role="group" aria-label="View toggle">
+                        <button type="button" class="btn btn-outline-secondary active" id="listViewBtn" title="List view"
+                            aria-pressed="true">
+                            <i class="fas fa-list"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="gridViewBtn" title="Grid view"
+                            aria-pressed="false">
+                            <i class="fas fa-th"></i>
+                        </button>
+                    </div>
+                    <button class="btn btn-light workspace-pin-btn" type="button" id="workspacePinBtn" aria-pressed="false"
+                        title="Pin workspace rail" aria-label="Pin workspace rail">
+                        <i class="fas fa-thumbtack me-1"></i>
+                        <span class="d-none d-md-inline">Workspace</span>
+                    </button>
+                    {% if current_user.is_authenticated and (not current_user.is_view_only_admin) %}
+                    <a href="{{ url_for('upload_media') }}" class="btn btn-primary upload-btn" title="Upload media">
+                        <i class="fas fa-upload me-2"></i>
+                        <span class="workspace-label">Upload</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
 
-                    <!-- Grid View -->
-                    <div id="gridView" class="view-mode" style="display: none;">
-                        <div class="file-grid">
+            <div class="files-content">
+                <div class="table-scroll" id="listView">
+                    {% if media_items %}
+                    <table class="table modern-table media-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 18%;">Name</th>
+                                <th style="width: 18%;">Owner</th>
+                                <th style="width: 16%;">Date Added</th>
+                                <th style="width: 12%;">Size</th>
+                                <th style="width: 36%;" class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                             {% for media in media_items %}
-                            <div class="file-card media-item" data-filename="{{ media.filename|lower }}"
-                                data-id="{{ media.id }}">
-                                {% set can_manage = (media.user_id == current_user.id) or (current_user.is_admin and not current_user.is_view_only_admin) %}
-                                <div class="file-card-inner">
-                                    <div class="file-card-icon">
-                                        {% if media.file_type and media.file_type.startswith('image/') %}
-                                        <img src="{{ url_for('uploaded_file', filename=media.filename) }}"
-                                            alt="{{ media.filename }}" class="grid-thumbnail">
-                                        {% else %}
-                                        {% set icon_data = {'class': 'fa-file', 'color_class': 'file-icon-color-default'} %}
-                                        {% if media.file_type %}
-                                        {% if 'pdf' in media.file_type %}{% set icon_data = {'class': 'fa-file-pdf',
-                                        'color_class': 'file-icon-color-pdf'} %}
-                                        {% elif 'word' in media.file_type or 'document' in media.file_type %}{% set
-                                        icon_data = {'class': 'fa-file-word', 'color_class': 'file-icon-color-word'} %}
-                                        {% elif 'excel' in media.file_type or 'sheet' in media.file_type %}{% set
-                                        icon_data = {'class': 'fa-file-excel', 'color_class': 'file-icon-color-excel'} %}
-                                        {% elif 'powerpoint' in media.file_type or 'presentation' in media.file_type
-                                        %}{% set icon_data = {'class': 'fa-file-powerpoint', 'color_class': 'file-icon-color-ppt'} %}
-                                        {% elif 'video' in media.file_type %}{% set icon_data = {'class':
-                                        'fa-file-video', 'color_class': 'file-icon-color-video'} %}
-                                        {% elif 'audio' in media.file_type %}{% set icon_data = {'class':
-                                        'fa-file-audio', 'color_class': 'file-icon-color-audio'} %}
-                                        {% elif 'zip' in media.file_type or 'compressed' in media.file_type %}{% set
-                                        icon_data = {'class': 'fa-file-archive', 'color_class': 'file-icon-color-archive'} %}
-                                        {% elif 'text' in media.file_type %}{% set icon_data = {'class': 'fa-file-alt',
-                                        'color_class': 'file-icon-color-text'} %}
-                                        {% endif %}
-                                        {% endif %}
-                                        <i class="fas {{ icon_data.class }} {{ icon_data.color_class }}"></i>
-                                        {% endif %}
+                            {% set can_manage_file = (media.user_id == current_user.id) or (current_user.is_admin and not current_user.is_view_only_admin) %}
+                            <tr class="media-item" data-filename="{{ media.filename|lower }}">
+                                <td class="media-name-cell">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="file-icon">
+                                            {{ file_icon(media) }}
+                                        </div>
+                                        <div class="file-info">
+                                            <a href="{{ url_for('view_media', media_id=media.id) }}"
+                                                class="file-name text-decoration-none fw-semibold">
+                                                {{ media.filename }}
+                                            </a>
+                                            <div class="text-muted small text-uppercase">{{ media.file_type or 'File' }}</div>
+                                        </div>
                                     </div>
-                                    <div class="file-card-name" title="{{ media.filename }}">{{ media.filename }}</div>
-                                    <div class="file-card-meta">
-                                        <span class="file-size">{{ (media.file_size / 1024)|round(1) }} KB</span>
-                                        {% if media.user %}
-                                        {% set owner_label = media.user.username if media.user.is_view_only_admin else (media.user.name or media.user.username or media.user.email) %}
-                                        <div class="text-muted" style="font-size: 0.7rem;">Owner: {{ owner_label }}</div>
-                                        {% endif %}
-                                    </div>
-                                    <div class="file-card-actions action-button-set justify-content-center">
+                                </td>
+                                <td class="text-truncate">
+                                    {{ file_owner(media)|trim }}
+                                </td>
+                                <td class="text-nowrap">
+                                    {{ media.uploaded_at.strftime('%b %d, %Y') if media.uploaded_at else '—' }}
+                                </td>
+                                <td class="text-nowrap">
+                                    {% if media.file_size %}
+                                        {{ (media.file_size / 1024)|round(1) }} KB
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <div class="action-button-set d-inline-flex gap-2 flex-wrap justify-content-end">
                                         <a href="{{ url_for('view_media', media_id=media.id) }}"
                                             class="btn btn-sm btn-action btn-action-view" title="View">
                                             <i class="fas fa-eye"></i>
@@ -248,53 +182,101 @@
                                             class="btn btn-sm btn-action btn-action-download" title="Download">
                                             <i class="fas fa-download"></i>
                                         </a>
-                                        {% if can_manage %}
+                                        {% if can_manage_file %}
+                                        <a href="{{ url_for('edit_descriptors', media_id=media.id) }}"
+                                            class="btn btn-sm btn-action btn-action-edit" title="Edit Details">
+                                            <i class="fas fa-pen"></i>
+                                        </a>
                                         <button class="btn btn-sm btn-action btn-action-delete delete-media" data-id="{{ media.id }}"
                                             data-filename="{{ media.filename }}" title="Delete">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                         {% endif %}
                                     </div>
-                                </div>
-                            </div>
+                                </td>
+                            </tr>
                             {% endfor %}
-                        </div>
-                    </div>
-
-                    <div class="alert alert-warning no-results text-center shadow-sm" style="display: none;">
-                        <i class="fas fa-search me-2"></i> No files match your search.
-                    </div>
-
-                    {% else %}
-                    <div class="empty-state text-center py-5">
-                        <div class="empty-icon mb-4">
-                            <i class="fas fa-cloud-upload-alt fa-4x text-primary opacity-25"></i>
-                        </div>
-                        <h5 class="fw-bold text-dark mb-2">No files yet</h5>
-                        <p class="text-muted mb-4">Upload documents, images, or media to get started.</p>
-                        <a href="{{ url_for('upload_media') }}" class="btn btn-primary px-4 rounded-pill">
-                            <i class="fas fa-plus me-2"></i>Upload File
-                        </a>
-                    </div>
+                        </tbody>
+                    </table>
                     {% endif %}
                 </div>
 
-                <!-- Status Bar -->
-                {% if media_items %}
-                <div class="status-bar mt-3 pt-3 border-top px-3 pb-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="text-muted small">
-                            <span id="statusText">{{ media_items|length }} items</span>
+                <div class="file-grid" id="gridView" style="display: none;">
+                    {% for media in media_items %}
+                    {% set can_manage_file = (media.user_id == current_user.id) or (current_user.is_admin and not current_user.is_view_only_admin) %}
+                    <div class="file-card media-item" data-filename="{{ media.filename|lower }}">
+                        <div class="file-card-icon">
+                            {{ file_icon(media) }}
                         </div>
-                        <div class="text-muted small">
-                            Total size: <span id="totalSize">{{ (media_items|sum(attribute='file_size') / 1024)|round(1)
-                                }} KB</span>
+                        <div class="file-card-name" title="{{ media.filename }}">{{ media.filename }}</div>
+                        <div class="file-card-meta">
+                            <span class="d-block">
+                                {{ media.uploaded_at.strftime('%b %d, %Y') if media.uploaded_at else '—' }}
+                            </span>
+                            <span>
+                                {% if media.file_size %}
+                                    {{ (media.file_size / 1024)|round(1) }} KB
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </span>
+                            <div class="text-muted small">Owner: {{ file_owner(media)|trim }}</div>
+                        </div>
+                        <div class="file-card-actions action-button-set justify-content-center">
+                            <a href="{{ url_for('view_media', media_id=media.id) }}"
+                                class="btn btn-sm btn-action btn-action-view" title="View">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{{ url_for('download_media', media_id=media.id) }}"
+                                class="btn btn-sm btn-action btn-action-download" title="Download">
+                                <i class="fas fa-download"></i>
+                            </a>
+                            {% if can_manage_file %}
+                            <a href="{{ url_for('edit_descriptors', media_id=media.id) }}"
+                                class="btn btn-sm btn-action btn-action-edit" title="Edit Details">
+                                <i class="fas fa-pen"></i>
+                            </a>
+                            <button class="btn btn-sm btn-action btn-action-delete delete-media" data-id="{{ media.id }}"
+                                data-filename="{{ media.filename }}" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
                         </div>
                     </div>
+                    {% endfor %}
+                </div>
+
+                <div class="alert alert-warning no-results text-center shadow-sm mt-3" style="display: none;">
+                    <i class="fas fa-search me-2"></i>No files match your search.
+                </div>
+
+                {% if not media_items %}
+                <div class="empty-state text-center py-5 mt-4">
+                    <div class="empty-icon mb-4">
+                        <i class="fas fa-cloud-upload-alt fa-4x text-primary opacity-25"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-2">No files yet</h5>
+                    <p class="text-muted mb-4">Upload documents, images, or media to get started.</p>
+                    <a href="{{ url_for('upload_media') }}" class="btn btn-primary px-4 rounded-pill">
+                        <i class="fas fa-plus me-2"></i>Upload File
+                    </a>
                 </div>
                 {% endif %}
             </div>
-        </div>
+
+            {% if media_items %}
+            <div class="status-bar mt-3 pt-3 border-top px-3 pb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-muted small">
+                        <span id="statusText">{{ media_items|length }} items</span>
+                    </div>
+                    <div class="text-muted small">
+                        Total size: <span id="totalSize">{{ (media_items|sum(attribute='file_size') / 1024)|round(1) }} KB</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </section>
     </div>
 </div>
 
@@ -351,9 +333,45 @@
 {% block styles %}
 {{ super() }}
 <style>
+    .media-page-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        min-height: calc(100vh - 110px);
+    }
+
     .explorer-container {
-        height: calc(100vh - 100px);
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
         background: var(--color-bg);
+    }
+
+    .explorer-shell {
+        display: flex;
+        gap: 1.25rem;
+        width: 100%;
+    }
+
+    .explorer-shell.workspace-pinned .explorer-sidebar {
+        position: sticky;
+        top: 1.5rem;
+    }
+
+    .explorer-sidebar {
+        flex: 0 0 clamp(240px, 18vw, 280px);
+        border-radius: 20px;
+        border: 1px solid var(--color-border);
+        background: var(--color-surface);
+        padding: 1.25rem;
+        box-shadow: 0 10px 30px rgba(var(--shadow-card-color-rgb), 0.12);
+    }
+
+    .workspace-actions .workspace-new {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
     }
 
     .explorer-nav-list .list-group-item {
@@ -383,19 +401,94 @@
         box-shadow: inset 3px 0 0 var(--color-primary);
     }
 
-    .explorer-nav-list .list-group-item.active .badge {
-        background-color: var(--color-primary) !important;
-        color: var(--color-contrast-light) !important;
+    .explorer-main {
+        flex: 1;
+        min-width: 0;
+        border-radius: 20px;
+        border: 1px solid var(--color-border);
+        background: var(--color-bg);
+        padding: 1.5rem;
+        box-shadow: 0 10px 30px rgba(var(--shadow-card-color-rgb), 0.12);
     }
 
-    .modern-table {
-        border-collapse: separate;
-        border-spacing: 0;
+    .workspace-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+        padding: 1rem 1.25rem;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 18px;
+    }
+
+    .workspace-summary-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .workspace-summary-actions .upload-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border-radius: 999px;
+        padding-inline: 1.25rem;
+    }
+
+    .workspace-pin-btn {
+        border-radius: 999px;
+        border: 1px dashed var(--color-border);
+    }
+
+    .workspace-pin-btn.is-active {
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+        background: rgba(var(--color-primary-rgb), 0.12);
+    }
+
+    .search-box {
+        width: min(280px, 42vw);
+    }
+
+    .search-box .form-control {
+        border-radius: 0;
+        border-left: none;
+        background: var(--color-surface);
+    }
+
+    .search-box .input-group-text {
+        border-right: none;
+        background: var(--color-surface);
+        color: var(--color-text-muted);
+    }
+
+    .search-box .btn {
+        border-radius: 0 999px 999px 0;
+    }
+
+    .files-content {
+        background: var(--color-surface);
+        border-radius: 18px;
+        border: 1px solid var(--color-border);
+        padding: 1.5rem;
+        box-shadow: 0 15px 35px rgba(var(--shadow-card-color-rgb), 0.12);
+    }
+
+    .table-scroll {
+        width: 100%;
+        min-width: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .media-table {
-        width: 100%;
-        min-width: 980px;
+        min-width: 1200px;
+        width: max(1200px, 100%);
     }
 
     .modern-table thead th {
@@ -410,14 +503,12 @@
     }
 
     .modern-table tbody tr {
-        transition: all 0.2s;
         border-bottom: 1px solid var(--color-border);
+        transition: background-color 0.2s ease;
     }
 
     .modern-table tbody tr:hover {
         background-color: rgba(var(--color-primary-rgb), 0.05);
-        transform: scale(1.005);
-        box-shadow: 0 2px 12px rgba(var(--shadow-card-color-rgb), 0.15);
     }
 
     .modern-table tbody td {
@@ -427,15 +518,16 @@
     }
 
     .media-name-cell .file-info {
+        flex: 1 1 auto;
         min-width: 0;
     }
 
     .media-name-cell .file-name {
-        display: inline-block;
-        max-width: clamp(140px, 22vw, 320px);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        display: block;
+        max-width: 100%;
+        white-space: normal;
+        word-break: break-word;
+        color: var(--color-text);
     }
 
     .file-icon {
@@ -446,12 +538,58 @@
         justify-content: center;
         background: var(--color-surface-muted);
         border-radius: 12px;
-        transition: all 0.2s;
     }
 
-    .table-scroll {
-        width: 100%;
-        min-width: 0;
+    .file-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .file-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 14px;
+        padding: 1rem;
+        text-align: center;
+        box-shadow: 0 8px 24px rgba(var(--shadow-card-color-rgb), 0.15);
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .file-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 34px rgba(var(--shadow-card-color-rgb), 0.2);
+    }
+
+    .file-card-icon {
+        font-size: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .file-card-name {
+        font-size: 0.95rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .file-card-meta {
+        font-size: 0.8rem;
+        color: var(--color-text-muted);
+        line-height: 1.4;
+    }
+
+    .file-card-actions {
+        display: flex;
+        gap: 0.25rem;
+        justify-content: center;
     }
 
     .file-icon-color-default,
@@ -487,144 +625,8 @@
         color: var(--color-secondary);
     }
 
-    .file-thumbnail {
-        width: 48px;
-        height: 48px;
-        object-fit: cover;
-        border-radius: 6px;
-        box-shadow: 0 2px 4px rgba(var(--shadow-card-color-rgb), 0.2);
-    }
-
-    .file-name {
-        font-size: 0.95rem;
-        transition: color 0.2s;
-        color: var(--color-text);
-    }
-
-    .file-name:hover {
-        color: var(--color-primary) !important;
-    }
-
-    .user-avatar {
-        width: 28px;
-        height: 28px;
-        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--color-contrast-light);
-    }
-
-    .file-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-        gap: 1rem;
-        padding: 0.5rem;
-    }
-
-    .file-card {
-        background: var(--color-surface);
-        border-radius: 12px;
-        padding: 1rem;
-        text-align: center;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        cursor: pointer;
-        border: 2px solid transparent;
-        box-shadow: 0 6px 18px rgba(var(--shadow-card-color-rgb), 0.15);
-    }
-
-    .file-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 30px rgba(var(--shadow-card-color-rgb), 0.25);
-        border-color: var(--color-primary);
-    }
-
-    .file-card-icon {
-        font-size: 3.5rem;
-        margin-bottom: 0.75rem;
-        height: 80px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .grid-thumbnail {
-        width: 100%;
-        height: 80px;
-        object-fit: cover;
-        border-radius: 6px;
-    }
-
-    .file-card-name {
-        font-size: 0.85rem;
-        font-weight: 500;
-        color: var(--color-text);
-        margin-bottom: 0.5rem;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .file-card-meta {
-        font-size: 0.75rem;
-        color: var(--color-text-muted);
-        margin-bottom: 0.75rem;
-    }
-
-    .file-card-actions {
-        display: flex;
-        gap: 0.25rem;
-        justify-content: center;
-        opacity: 0;
-        transition: opacity 0.2s;
-    }
-
-    .file-card:hover .file-card-actions {
-        opacity: 1;
-    }
-
-    .view-toggle .btn {
-        border-radius: 6px;
-        transition: all 0.2s;
-    }
-
-    .view-toggle .btn.active {
-        background-color: var(--color-primary);
-        border-color: var(--color-primary);
-        color: var(--color-contrast-light);
-    }
-
-    .search-box {
-        width: min(280px, 48vw);
-    }
-
-    .search-box input {
-        border-radius: 20px 0 0 20px;
-        transition: all 0.2s;
-        background: var(--color-surface);
-        color: var(--color-text);
-        border-color: var(--color-border);
-    }
-
-    .search-box input:focus {
-        box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.25);
-        border-color: var(--color-primary);
-    }
-
-    .search-box .input-group-text {
-        border-radius: 20px 0 0 20px;
-        background: var(--color-surface);
-        color: var(--color-text-muted);
-        border-color: var(--color-border);
-    }
-
-    .search-box button {
-        border-radius: 0 20px 20px 0;
-    }
-
     .status-bar {
-        background: var(--color-surface-muted);
+        background: var(--color-surface);
         border-radius: 12px;
         padding: 0.5rem 1rem;
     }
@@ -635,65 +637,29 @@
         box-shadow: 0 10px 25px rgba(var(--shadow-card-color-rgb), 0.15);
     }
 
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
+    @media (max-width: 992px) {
+        .explorer-shell {
+            flex-direction: column;
         }
 
-        to {
-            opacity: 1;
-            transform: translateY(0);
+        .explorer-sidebar {
+            width: 100%;
+            position: static;
         }
-    }
 
-    .media-item {
-        animation: fadeIn 0.3s ease-out;
-    }
-
-    .files-content::-webkit-scrollbar,
-    .table-scroll::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-
-    .files-content::-webkit-scrollbar-track,
-    .table-scroll::-webkit-scrollbar-track {
-        background: var(--color-surface-muted);
-        border-radius: 10px;
-    }
-
-    .files-content::-webkit-scrollbar-thumb,
-    .table-scroll::-webkit-scrollbar-thumb {
-        background: rgba(var(--color-primary-rgb), 0.35);
-        border-radius: 10px;
-    }
-
-    .files-content::-webkit-scrollbar-thumb:hover,
-    .table-scroll::-webkit-scrollbar-thumb:hover {
-        background: rgba(var(--color-primary-rgb), 0.5);
+        .search-box {
+            width: 100%;
+        }
     }
 
     @media (max-width: 768px) {
         .workspace-summary {
             flex-direction: column;
             align-items: flex-start;
-            margin: 1rem 1rem 0.75rem;
-        }
-
-        .workspace-summary-actions {
-            width: 100%;
-            justify-content: flex-start;
-            gap: 0.75rem;
-        }
-
-        .workspace-summary-actions .search-box,
-        .search-box {
-            width: 100%;
         }
 
         .media-table {
-            min-width: 900px;
+            min-width: 720px;
         }
     }
 </style>
@@ -725,7 +691,7 @@
         applyWorkspacePinnedState();
 
         workspacePinBtn?.addEventListener('click', () => {
-            if (!explorerShell) {
+            if (!explorerShell || !workspacePinBtn) {
                 return;
             }
             const nextPinned = !explorerShell.classList.contains('workspace-pinned');
@@ -741,77 +707,97 @@
             workspacePinBtn.setAttribute('aria-label', nextPinned ? 'Unpin workspace rail' : 'Pin workspace rail');
         });
 
-        // View Toggle
         const listViewBtn = document.getElementById('listViewBtn');
         const gridViewBtn = document.getElementById('gridViewBtn');
         const listView = document.getElementById('listView');
         const gridView = document.getElementById('gridView');
-        const currentProjectId = {{ current_project_id if current_project_id is not none else 'null' }};
+        const currentProjectId = {{ (current_project_id if current_project_id is not none else None)|tojson }};
         const currentProjectName = {{ (active_project.name if active_project else '')|tojson }};
 
-        // Load saved view preference
-        const savedView = localStorage.getItem('mediaView') || 'list';
-        if (savedView === 'grid') {
-            switchToGrid();
-        }
-
-        listViewBtn.addEventListener('click', switchToList);
-        gridViewBtn.addEventListener('click', switchToGrid);
-
-        function switchToList() {
+        const switchToList = () => {
+            if (!listView || !gridView || !listViewBtn || !gridViewBtn) {
+                return;
+            }
             listView.style.display = 'block';
             gridView.style.display = 'none';
             listViewBtn.classList.add('active');
             gridViewBtn.classList.remove('active');
+            listViewBtn.setAttribute('aria-pressed', 'true');
+            gridViewBtn.setAttribute('aria-pressed', 'false');
             localStorage.setItem('mediaView', 'list');
-        }
+        };
 
-        function switchToGrid() {
+        const switchToGrid = () => {
+            if (!listView || !gridView || !listViewBtn || !gridViewBtn) {
+                return;
+            }
             listView.style.display = 'none';
-            gridView.style.display = 'block';
+            gridView.style.display = 'grid';
             gridViewBtn.classList.add('active');
             listViewBtn.classList.remove('active');
+            gridViewBtn.setAttribute('aria-pressed', 'true');
+            listViewBtn.setAttribute('aria-pressed', 'false');
             localStorage.setItem('mediaView', 'grid');
+        };
+
+        if (listViewBtn && gridViewBtn && listView && gridView) {
+            const savedView = localStorage.getItem('mediaView') || 'list';
+            if (savedView === 'grid') {
+                switchToGrid();
+            } else {
+                switchToList();
+            }
+
+            listViewBtn.addEventListener('click', switchToList);
+            gridViewBtn.addEventListener('click', switchToGrid);
         }
 
-        // Search Functionality
         const searchInput = document.getElementById('searchInput');
         const clearSearch = document.getElementById('clearSearch');
         const noResults = document.querySelector('.no-results');
+        const statusTextEl = document.getElementById('statusText');
+        const fileCountEl = document.getElementById('fileCount');
+        const listItems = Array.from(document.querySelectorAll('#listView .media-item'));
+        const allItems = Array.from(document.querySelectorAll('.media-item'));
 
-        function filterMedia() {
-            const searchTerm = searchInput.value.toLowerCase();
-            const items = document.querySelectorAll('.media-item');
+        const applySearch = () => {
+            const term = (searchInput?.value || '').toLowerCase().trim();
             let visibleCount = 0;
 
-            items.forEach(item => {
-                const filename = item.dataset.filename;
-                if (filename.includes(searchTerm)) {
-                    item.style.display = '';
+            allItems.forEach(item => {
+                const matches = !term || item.dataset.filename?.includes(term);
+                item.style.display = matches ? '' : 'none';
+                if (matches && item.closest('#listView')) {
                     visibleCount++;
-                } else {
-                    item.style.display = 'none';
                 }
             });
 
-            // Update status
-            document.getElementById('statusText').textContent = `${visibleCount} items${searchTerm ? ' (filtered)' : ''}`;
-
-            if (noResults) {
-                noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+            const suffix = term ? ' (filtered)' : '';
+            if (statusTextEl) {
+                statusTextEl.textContent = `${visibleCount} items${suffix}`;
             }
-        }
+            if (fileCountEl) {
+                fileCountEl.textContent = `${visibleCount} items${suffix}`;
+            }
+            if (noResults) {
+                const show = term && visibleCount === 0;
+                noResults.style.display = show ? 'block' : 'none';
+            }
+        };
 
-        if (searchInput) {
-            searchInput.addEventListener('input', filterMedia);
-            clearSearch.addEventListener('click', () => {
-                searchInput.value = '';
-                filterMedia();
-            });
-        }
+        searchInput?.addEventListener('input', applySearch);
+        clearSearch?.addEventListener('click', () => {
+            if (!searchInput) {
+                return;
+            }
+            searchInput.value = '';
+            applySearch();
+        });
 
-        // Delete Functionality
-        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        applySearch();
+
+        const deleteModalEl = document.getElementById('deleteModal');
+        const deleteModal = deleteModalEl ? new bootstrap.Modal(deleteModalEl) : null;
         let deleteId = null;
         let deleteMode = 'delete';
         const deleteModalTitle = document.getElementById('deleteModalTitle');
@@ -826,7 +812,12 @@
                 e.stopPropagation();
                 deleteId = this.dataset.id;
                 deleteMode = currentProjectId ? 'unlink' : 'delete';
-                deleteFilenamePlaceholder.textContent = this.dataset.filename;
+                if (deleteFilenamePlaceholder) {
+                    deleteFilenamePlaceholder.textContent = this.dataset.filename;
+                }
+                if (!deleteModal || !deleteModalTitle || !deleteModalAction || !deleteModalWarning || !confirmDeleteBtn) {
+                    return;
+                }
                 if (deleteMode === 'unlink') {
                     deleteModalTitle.textContent = 'Remove From Project?';
                     deleteModalAction.textContent = 'remove';
@@ -844,10 +835,12 @@
             });
         });
 
-        confirmDeleteBtn.addEventListener('click', function () {
-            if (!deleteId) return;
+        confirmDeleteBtn?.addEventListener('click', function () {
+            if (!deleteId || !confirmDeleteBtn) {
+                return;
+            }
 
-            const btn = this;
+            const btn = confirmDeleteBtn;
             btn.disabled = true;
             btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> ${deleteMode === 'unlink' ? 'Removing...' : 'Deleting...'}`;
             const payload = deleteMode === 'unlink' && currentProjectId ? { project_id: currentProjectId } : {};

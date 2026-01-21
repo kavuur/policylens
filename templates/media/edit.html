@@ -1,9 +1,57 @@
 {% extends "media/base.html" %}
 
+{% block styles %}
+{{ super() }}
+<style>
+    .edit-media-card {
+        border-radius: 20px;
+        border: 1px solid var(--color-border);
+        box-shadow: 0 25px 55px rgba(var(--shadow-card-color-rgb), 0.18);
+        background: var(--color-surface);
+    }
+
+    .edit-media-card .card-header {
+        background: var(--color-surface-muted);
+        border-bottom: 1px solid var(--color-border);
+        color: var(--color-text);
+    }
+
+    .descriptor-row .form-control {
+        background: var(--color-surface);
+        color: var(--color-text);
+        border-color: var(--color-border);
+    }
+
+    .descriptor-remove-btn {
+        background: rgba(var(--color-danger-rgb), 0.15);
+        border: 1px solid rgba(var(--color-danger-rgb), 0.4);
+        color: var(--color-danger);
+        border-radius: 10px;
+        transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+
+    .descriptor-remove-btn i {
+        pointer-events: none;
+    }
+
+    .descriptor-remove-btn:hover,
+    .descriptor-remove-btn:focus-visible {
+        background: rgba(var(--color-danger-rgb), 0.3);
+        color: var(--color-contrast-light);
+        transform: translateY(-1px);
+        outline: none;
+    }
+
+    .descriptor-remove-btn:focus-visible {
+        box-shadow: 0 0 0 3px rgba(var(--color-danger-rgb), 0.4);
+    }
+</style>
+{% endblock %}
+
 {% block media_content %}
 <div class="row justify-content-center">
     <div class="col-md-8">
-        <div class="card shadow-sm">
+        <div class="card edit-media-card shadow-sm">
             <div class="card-header bg-white py-3">
                 <h5 class="mb-0 fw-bold">Edit Media</h5>
             </div>
@@ -59,7 +107,7 @@
                                     placeholder="Key (e.g., Year)" value="{{ descriptor.key }}" required>
                                 <input type="text" class="form-control" name="descriptor_value_{{ loop.index0 }}"
                                     placeholder="Value (e.g., 2023)" value="{{ descriptor.value }}" required>
-                                <button type="button" class="btn btn-outline-danger remove-descriptor">
+                                <button type="button" class="btn descriptor-remove-btn remove-descriptor">
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
@@ -93,7 +141,7 @@
         row.innerHTML = `
                 <input type="text" class="form-control" name="descriptor_key_${descriptorCount}" placeholder="Key (e.g., Year)" required>
                 <input type="text" class="form-control" name="descriptor_value_${descriptorCount}" placeholder="Value (e.g., 2023)" required>
-                <button type="button" class="btn btn-outline-danger remove-descriptor">
+                <button type="button" class="btn descriptor-remove-btn remove-descriptor">
                     <i class="fas fa-times"></i>
                 </button>
             `;

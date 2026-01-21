@@ -1,41 +1,106 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="utf-8">
+    <title>Password Reset Request</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
     <style>
-        body { font-family: Arial, sans-serif; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background-color: #007bff; color: white; padding: 20px; border-radius: 5px 5px 0 0; }
-        .content { background-color: #f8f9fa; padding: 20px; border-radius: 0 0 5px 5px; }
-        .button { background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 20px; }
-        .footer { margin-top: 20px; font-size: 12px; color: #666; }
+        body {
+            font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+            color: var(--color-text);
+            background: var(--color-bg);
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: var(--color-bg);
+        }
+
+        .card {
+            background: var(--color-surface);
+            border-radius: 16px;
+            border: 1px solid var(--color-border);
+            box-shadow: 0 16px 35px rgba(var(--shadow-card-color-rgb), 0.18);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(120deg, var(--color-primary), var(--color-secondary));
+            color: var(--color-contrast-light);
+            padding: 24px 20px;
+        }
+
+        .content {
+            background: var(--color-surface);
+            padding: 24px 20px;
+            color: var(--color-text);
+        }
+
+        .button {
+            background-color: var(--color-primary);
+            color: var(--color-contrast-light);
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 999px;
+            display: inline-block;
+            margin-top: 20px;
+            font-weight: 600;
+            box-shadow: 0 8px 20px rgba(var(--color-primary-rgb), 0.35);
+        }
+
+        .button:hover {
+            background-color: var(--color-primary-dark);
+            color: var(--color-contrast-light);
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 12px;
+            color: var(--color-text-muted);
+        }
+
+        code {
+            display: inline-block;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: var(--color-surface-muted);
+            color: var(--color-text);
+            word-break: break-all;
+        }
     </style>
 </head>
-<body>
+<body data-theme="light">
     <div class="container">
-        <div class="header">
-            <h2>Password Reset Request</h2>
-        </div>
-        <div class="content">
-            <p>Hello {{ user.username }},</p>
-            
-            {% if admin_reset %}
-            <p>An administrator has requested that you reset your password for your PolicyLens account.</p>
-            {% else %}
-            <p>We received a request to reset your password. If you didn't make this request, you can safely ignore this email.</p>
-            {% endif %}
-            
-            <p>To reset your password, click the button below:</p>
-            
-            <a href="{{ reset_url }}" class="button">Reset Password</a>
-            
-            <p>Or copy and paste this link in your browser:</p>
-            <p><code>{{ reset_url }}</code></p>
-            
-            <p><strong>Important:</strong> This link will expire in 24 hours.</p>
-            
-            <div class="footer">
-                <p>If you have any questions, please contact support.</p>
-                <p>&copy; 2026 PolicyLens. All rights reserved.</p>
+        <div class="card">
+            <div class="header">
+                <h2>Password Reset Request</h2>
+            </div>
+            <div class="content">
+                <p>Hello {{ user.username }},</p>
+
+                {% if admin_reset %}
+                <p>An administrator has requested that you reset your password for your PolicyLens account.</p>
+                {% else %}
+                <p>We received a request to reset your password. If you didn't make this request, you can safely ignore this email.</p>
+                {% endif %}
+
+                <p>To reset your password, click the button below:</p>
+
+                <a href="{{ reset_url }}" class="button">Reset Password</a>
+
+                <p>Or copy and paste this link in your browser:</p>
+                <p><code>{{ reset_url }}</code></p>
+
+                <p><strong>Important:</strong> This link will expire in 24 hours.</p>
+
+                <div class="footer">
+                    <p>If you have any questions, please contact support.</p>
+                    <p>&copy; 2026 PolicyLens. All rights reserved.</p>
+                </div>
             </div>
         </div>
     </div>

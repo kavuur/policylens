@@ -11,11 +11,11 @@
         </a>
     </div>
 
-    <div class="card border-success">
-        <div class="card-header bg-success text-white">
+    <div class="card list-card info-card">
+        <div class="card-header list-card-header">
             <form method="GET" action="{{ url_for('list_projects') }}" class="row g-2">
                 <div class="col-md-8">
-                    <div class="input-group">
+                    <div class="input-group list-search">
                         <input type="text" name="q" class="form-control border-success" placeholder="Search projects..."
                             value="{{ search_query }}">
                         <button class="btn btn-outline-light" type="submit">
@@ -34,16 +34,16 @@
         <div class="card-body">
             {% if projects.items %}
             <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead class="table-success">
+                <table class="table table-hover align-middle list-table">
+                    <thead>
                         <tr>
-                            <th style="width: 50px;" class="bg-light">#</th>
-                            <th class="bg-light">Name</th>
-                            <th class="bg-light">Description</th>
-                            <th class="bg-light text-center">Media</th>
-                            <th class="bg-light text-center">Excerpts</th>
-                            <th class="bg-light">Created</th>
-                            <th style="width: 120px;" class="bg-light">Actions</th>
+                            <th style="width: 50px;">#</th>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th class="text-center">Media</th>
+                            <th class="text-center">Excerpts</th>
+                            <th>Created</th>
+                            <th style="width: 120px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -61,20 +61,24 @@
                                 description' }}</td>
                             <td class="text-center">{{ project.media_count or 0 }}</td>
                             <td class="text-center">{{ project.excerpts_count or 0 }}</td>
-                            <td>{{ project.created_at.strftime('%Y-%m-%d') }}</td>
                             <td>
-                                <div class="btn-group btn-group-sm" role="group">
+                                <time datetime="{{ project.created_at.isoformat() }}">
+                                    {{ project.created_at.strftime('%Y-%m-%d') }}
+                                </time>
+                            </td>
+                            <td>
+                                <div class="action-button-set justify-content-start">
                                     <a href="{{ url_for('view_project', project_id=project.id) }}"
-                                        class="btn btn-sm btn-outline-success" title="View">
+                                        class="btn btn-sm btn-action btn-action-view" title="View">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     {% if (project.owner_id == current_user.id) or (current_user.is_admin and not
                                     current_user.is_view_only_admin) %}
                                     <a href="{{ url_for('edit_project', project_id=project.id) }}"
-                                        class="btn btn-sm btn-outline-success" title="Edit">
+                                        class="btn btn-sm btn-action btn-action-edit" title="Edit">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <button class="btn btn-sm btn-outline-success delete-project"
+                                    <button class="btn btn-sm btn-action btn-action-delete delete-project"
                                         data-id="{{ project.id }}" title="Delete">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -146,14 +150,16 @@
             </div>
             {% else %}
             <div class="text-center py-5">
-                <div class="mb-3">
-                    <i class="fas fa-folder-open fa-4x text-success opacity-25"></i>
+                <div class="list-empty-state py-4">
+                    <div class="mb-3">
+                        <i class="fas fa-folder-open fa-4x text-success opacity-25"></i>
+                    </div>
+                    <h5 class="text-success">No projects found</h5>
+                    <p class="text-muted">Get started by creating your first project</p>
+                    <a href="{{ url_for('create_project') }}" class="btn btn-success mt-2">
+                        <i class="fas fa-plus me-2"></i>Create Project
+                    </a>
                 </div>
-                <h5 class="text-success">No projects found</h5>
-                <p class="text-muted">Get started by creating your first project</p>
-                <a href="{{ url_for('create_project') }}" class="btn btn-success mt-2">
-                    <i class="fas fa-plus me-2"></i>Create Project
-                </a>
             </div>
             {% endif %}
         </div>

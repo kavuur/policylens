@@ -27,11 +27,11 @@
     {% endif %}
     {% endwith %}
 
-    <div class="card mb-4">
-        <div class="card-header bg-light">
+    <div class="card mb-4 list-card info-card">
+        <div class="card-header list-card-header">
             <form method="get" class="row g-3">
                 <div class="col-md-8">
-                    <div class="input-group">
+                    <div class="input-group list-search">
                         <input type="text" name="search" value="{{ search }}" class="form-control"
                             placeholder="Search codebooks...">
                         <button type="submit" class="btn btn-primary">
@@ -48,7 +48,7 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover mb-0 list-table">
                 <thead class="table-light">
                     <tr>
                         <th width="50">#</th>
@@ -83,19 +83,19 @@
                         </td>
                         <td class="text-nowrap">
                             <small class="text-muted">
-                                {{ codebook.created_at.strftime('%b %d, %Y') }}
+                                <time datetime="{{ codebook.created_at.isoformat() }}">{{ codebook.created_at.strftime('%b %d, %Y') }}</time>
                             </small>
                         </td>
                         <td class="text-nowrap">
-                            <div class="d-flex gap-2 align-items-center justify-content-start flex-wrap">
+                            <div class="action-button-set justify-content-start">
                                 <a href="{{ url_for('edit_codebook_codes', codebook_id=codebook.id) }}"
-                                    class="btn btn-outline-primary btn-sm" title="Edit Codes">
+                                    class="btn btn-sm btn-action btn-action-descriptor" title="Edit Codes">
                                     <i class="fas fa-code"></i>
                                 </a>
-                                
+
                                 <!-- Export dropdown -->
                                 <div class="dropdown">
-                                    <button class="btn btn-outline-success btn-sm dropdown-toggle" type="button" id="exportBtn{{ codebook.id }}" data-bs-toggle="dropdown" aria-expanded="false" title="Export Codebook">
+                                    <button class="btn btn-sm btn-action btn-action-download dropdown-toggle" type="button" id="exportBtn{{ codebook.id }}" data-bs-toggle="dropdown" aria-expanded="false" title="Export Codebook">
                                         <i class="fas fa-download"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportBtn{{ codebook.id }}">
@@ -110,11 +110,11 @@
                                         </a></li>
                                     </ul>
                                 </div>
-                                
+
                                 {% set can_manage = (codebook.user_id == current_user.id) or (current_user.is_admin and not current_user.is_view_only_admin) %}
                                 {% if can_manage %}
                                 <a href="{{ url_for('edit_codebook', codebook_id=codebook.id) }}"
-                                    class="btn btn-outline-secondary btn-sm" title="Edit Details">
+                                    class="btn btn-sm btn-action btn-action-edit" title="Edit Details">
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 <form class="d-inline" onsubmit="event.preventDefault(); showDeleteCodebookModal(this);">
@@ -122,7 +122,7 @@
                                     <input type="hidden" name="codebook_id" value="{{ codebook.id }}" />
                                     <input type="hidden" name="codebook_name" value="{{ codebook.name }}" />
                                     <input type="hidden" name="action" value="{{ url_for('delete_codebook', codebook_id=codebook.id) }}" />
-                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete">
+                                    <button type="submit" class="btn btn-sm btn-action btn-action-delete" title="Delete">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </form>
@@ -134,7 +134,7 @@
                     {% else %}
                     <tr>
                         <td colspan="6" class="text-center py-4">
-                            <div class="py-4">
+                            <div class="py-4 list-empty-state">
                                 <i class="fas fa-book fa-3x text-muted mb-3"></i>
                                 <h5>No codebooks found</h5>
                                 <p class="text-muted">
@@ -156,7 +156,7 @@
         </div>
 
         {% if codebooks.pages > 1 %}
-        <div class="card-footer bg-white">
+        <div class="card-footer list-card-footer">
             <nav aria-label="Codebooks pagination">
                 <ul class="pagination justify-content-center mb-0">
                     {% if codebooks.has_prev %}

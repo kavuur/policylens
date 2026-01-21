@@ -1,7 +1,108 @@
 {% extends "media/base.html" %}
 
+{% block styles %}
+{{ super() }}
+<style>
+    .media-list-card {
+        border-radius: 20px;
+        box-shadow: 0 25px 55px rgba(var(--shadow-card-color-rgb), 0.18);
+    }
+
+    .media-search .input-group-text,
+    .media-search .form-control,
+    .media-search .btn {
+        background: var(--color-surface);
+        border-color: var(--color-border);
+        color: var(--color-text);
+    }
+
+    .media-search .form-control::placeholder {
+        color: var(--color-text-muted);
+    }
+
+    .media-search .input-group-text i {
+        color: var(--color-text-muted);
+    }
+
+    .media-library-table thead th {
+        background: var(--color-surface-muted);
+        border: none;
+        color: var(--color-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.78rem;
+    }
+
+    .media-library-table,
+    .media-library-table tbody td {
+        color: var(--color-text);
+    }
+
+    .media-library-table tbody td .text-muted,
+    .media-library-table tbody td .small,
+    .media-library-table tbody td .media-description {
+        color: var(--color-text-muted);
+    }
+
+    .media-library-table tbody td time {
+        color: var(--color-text-muted);
+        font-size: 0.85rem;
+        letter-spacing: 0.02em;
+    }
+
+    .media-library-table tbody tr {
+        transition: background 0.2s ease, transform 0.2s ease;
+        border-color: var(--color-border);
+    }
+
+    .media-library-table tbody tr:hover {
+        background: rgba(var(--color-primary-rgb), 0.05);
+        transform: translateY(-1px);
+    }
+
+    .media-library-table tbody td {
+        border-color: var(--color-border);
+        vertical-align: middle;
+    }
+
+    .media-file-name {
+        font-weight: 600;
+        color: var(--color-text);
+    }
+
+    .media-description {
+        color: var(--color-text-muted);
+        max-width: 280px;
+    }
+
+    td.text-end .action-button-set {
+        justify-content: flex-end;
+    }
+
+    .media-empty-state {
+        border: 1px dashed var(--color-border);
+        border-radius: 18px;
+        background: var(--color-surface-muted);
+    }
+
+    @media (max-width: 768px) {
+        .media-library-table {
+            font-size: 0.9rem;
+        }
+
+        .media-search {
+            flex-wrap: wrap;
+        }
+
+        td.text-end .action-button-set {
+            justify-content: flex-start;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block media_content %}
-<div class="card">
+<div class="card media-list-card info-card list-card">
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h5 class="card-title mb-0">Media Library</h5>
@@ -11,7 +112,7 @@
         </div>
 
         <div class="mb-4">
-            <div class="input-group">
+            <div class="input-group media-search list-search">
                 <span class="input-group-text"><i class="fas fa-search"></i></span>
                 <input type="text" id="searchInput" class="form-control" placeholder="Search media...">
                 <button class="btn btn-outline-secondary" type="button" id="clearSearch">
@@ -22,7 +123,7 @@
 
         {% if media_items %}
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover align-middle media-library-table list-table">
                 <thead>
                     <tr>
                         <th>Filename</th>
@@ -39,16 +140,20 @@
                     <tr class="media-row">
                         <td class="align-middle">
                             <div class="d-flex align-items-center">
-                                <i
-                                    class="fas fa-{{ 'file-image' if media.file_type and 'image' in media.file_type else 'file' }} me-2 text-muted"></i>
-                                <span>{{ media.filename }}</span>
+                                <span class="me-3 text-muted">
+                                    <i class="fas fa-{{ 'file-image' if media.file_type and 'image' in media.file_type else 'file' }}"></i>
+                                </span>
+                                <div>
+                                    <div class="media-file-name">{{ media.filename }}</div>
+                                    <div class="small text-muted">{{ media.file_type or 'Unknown type' }}</div>
+                                </div>
                             </div>
                         </td>
-                        <td>{{ media.description|truncate(30) }}</td>
+                        <td class="media-description">{{ media.description|truncate(30) }}</td>
                         <td>
                             <span class="badge bg-secondary">{{ media.category|title or 'Uncategorized' }}</span>
                         </td>
-                        <td><span class="badge bg-info text-dark">{{ media.type|title or 'Other' }}</span></td>
+                        <td><span class="badge bg-info">{{ media.type|title or 'Other' }}</span></td>
                         <td>
                             {% if media.visibility == 'public' %}
                             <span class="badge bg-success"><i class="fas fa-globe me-1"></i> Public</span>
@@ -56,25 +161,35 @@
                             <span class="badge bg-secondary"><i class="fas fa-lock me-1"></i> Private</span>
                             {% endif %}
                         </td>
-                        <td>{{ media.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td>
-                            <a href="{{ url_for('download_media', media_id=media.id) }}"
-                                class="btn btn-sm btn-outline-success">
-                                <i class="fas fa-download"></i>
-                            </a>
+                            <time datetime="{{ media.uploaded_at.isoformat() }}">
+                                {{ media.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
+                            </time>
+                        </td>
+                        <td class="text-end">
+                            <div class="action-button-set">
+                                <a href="{{ url_for('view_media', media_id=media.id) }}"
+                                    class="btn btn-sm btn-action btn-action-view" title="View Media">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('download_media', media_id=media.id) }}"
+                                    class="btn btn-sm btn-action btn-action-download" title="Download Media">
+                                    <i class="fas fa-download"></i>
+                                </a>
                             {% set can_manage = (media.user_id == current_user.id) or (current_user.is_admin and not current_user.is_view_only_admin) %}
                             {% if can_manage %}
                             <a href="{{ url_for('edit_descriptors', media_id=media.id) }}"
-                                class="btn btn-sm btn-outline-info me-1" title="Edit Descriptors">
+                                class="btn btn-sm btn-action btn-action-descriptor" title="Edit Descriptors">
                                 <i class="fas fa-tags"></i>
                             </a>
-                            <form method="POST" action="{{ url_for('delete_media', media_id=media.id) }}" class="d-inline delete-media-form" data-filename="{{ media.filename }}">
+                            <form method="POST" action="{{ url_for('delete_media', media_id=media.id) }}" class="delete-media-form" data-filename="{{ media.filename }}">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Media">
+                                <button type="submit" class="btn btn-sm btn-action btn-action-delete" title="Delete Media">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>
                             {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -82,7 +197,7 @@
             </table>
         </div>
         {% else %}
-        <div class="text-center py-5">
+        <div class="text-center py-5 media-empty-state">
             <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
             <h4>No media files found</h4>
             <p class="text-muted">Use the "Upload Media" button above to add your first file</p>

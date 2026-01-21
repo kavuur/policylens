@@ -4,10 +4,9 @@
 {{ super() }}
 
 <style>
-    /* Custom styles for media view */
     .media-preview {
-        background-color: #f8f9fa;
-        border-radius: 8px;
+        background-color: var(--color-surface-muted);
+        border-radius: 12px;
         padding: 2rem;
         margin-bottom: 2rem;
         text-align: center;
@@ -16,28 +15,28 @@
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        border: 1px dashed #dee2e6;
+        border: 1px dashed var(--color-border);
     }
 
     .media-preview img {
         max-width: 100%;
         max-height: 500px;
         object-fit: contain;
-        border-radius: 4px;
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        box-shadow: 0 20px 45px rgba(var(--shadow-card-color-rgb), 0.25);
     }
 
     .file-icon {
         font-size: 4rem;
-        color: #6c757d;
+        color: var(--color-text-muted);
         margin-bottom: 1rem;
     }
 
     .media-actions {
         margin: 1.5rem 0;
         padding: 1rem 0;
-        border-top: 1px solid #eee;
-        border-bottom: 1px solid #eee;
+        border-top: 1px solid var(--color-border);
+        border-bottom: 1px solid var(--color-border);
     }
 
     .media-header {
@@ -47,7 +46,7 @@
     .media-title {
         font-size: 1.75rem;
         font-weight: 600;
-        color: #2c3e50;
+        color: var(--color-text);
     }
 </style>
 
@@ -134,16 +133,16 @@
                     <h5 class="mb-0">Actions</h5>
                 </div>
                 <div class="card-body">
-                    <div class="d-flex flex-wrap">
+                    <div class="action-button-set w-100">
                         <a href="{{ url_for('download_media', media_id=media.id) }}" 
-                           class="btn btn-primary btn-action">
+                           class="btn btn-action btn-action-download">
                             <i class="fas fa-download me-2"></i> Download
                         </a>
                         <a href="{{ url_for('edit_media', media_id=media.id) }}" 
-                           class="btn btn-outline-secondary btn-action">
+                           class="btn btn-action btn-action-edit">
                             <i class="fas fa-edit me-2"></i> Edit
                         </a>
-                        <button class="btn btn-outline-danger btn-action ms-auto" id="deleteMedia">
+                        <button class="btn btn-action btn-action-delete ms-auto" id="deleteMedia">
                             <i class="fas fa-trash me-2"></i> Delete
                         </button>
                     </div>

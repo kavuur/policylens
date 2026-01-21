@@ -103,29 +103,28 @@
                                                 <img src="{{ url_for('uploaded_file', filename=media.filename) }}"
                                                     alt="thumbnail" class="file-thumbnail">
                                                 {% else %}
-                                                {% set icon_data = {'class': 'fa-file', 'color': '#6c757d'} %}
+                                                {% set icon_data = {'class': 'fa-file', 'color_class': 'file-icon-color-default'} %}
                                                 {% if media.file_type %}
                                                 {% if 'pdf' in media.file_type %}{% set icon_data = {'class':
-                                                'fa-file-pdf', 'color': '#dc3545'} %}
+                                                'fa-file-pdf', 'color_class': 'file-icon-color-pdf'} %}
                                                 {% elif 'word' in media.file_type or 'document' in media.file_type %}{%
-                                                set icon_data = {'class': 'fa-file-word', 'color': '#2b579a'} %}
+                                                set icon_data = {'class': 'fa-file-word', 'color_class': 'file-icon-color-word'} %}
                                                 {% elif 'excel' in media.file_type or 'sheet' in media.file_type %}{%
-                                                set icon_data = {'class': 'fa-file-excel', 'color': '#217346'} %}
+                                                set icon_data = {'class': 'fa-file-excel', 'color_class': 'file-icon-color-excel'} %}
                                                 {% elif 'powerpoint' in media.file_type or 'presentation' in
                                                 media.file_type %}{% set icon_data = {'class': 'fa-file-powerpoint',
-                                                'color': '#d24726'} %}
+                                                'color_class': 'file-icon-color-ppt'} %}
                                                 {% elif 'video' in media.file_type %}{% set icon_data = {'class':
-                                                'fa-file-video', 'color': '#0dcaf0'} %}
+                                                'fa-file-video', 'color_class': 'file-icon-color-video'} %}
                                                 {% elif 'audio' in media.file_type %}{% set icon_data = {'class':
-                                                'fa-file-audio', 'color': '#ffc107'} %}
+                                                'fa-file-audio', 'color_class': 'file-icon-color-audio'} %}
                                                 {% elif 'zip' in media.file_type or 'compressed' in media.file_type %}{%
-                                                set icon_data = {'class': 'fa-file-archive', 'color': '#fd7e14'} %}
+                                                set icon_data = {'class': 'fa-file-archive', 'color_class': 'file-icon-color-archive'} %}
                                                 {% elif 'text' in media.file_type %}{% set icon_data = {'class':
-                                                'fa-file-alt', 'color': '#6c757d'} %}
+                                                'fa-file-alt', 'color_class': 'file-icon-color-text'} %}
                                                 {% endif %}
                                                 {% endif %}
-                                                <i class="fas {{ icon_data.class }} fa-2x"
-                                                    style="color: {{ icon_data.color }};"></i>
+                                                <i class="fas {{ icon_data.class }} fa-2x {{ icon_data.color_class }}"></i>
                                                 {% endif %}
                                             </div>
                                             <div class="file-info">
@@ -158,23 +157,23 @@
                                     </td>
                                     <td class="text-muted small">{{ (media.file_size / 1024)|round(1) }} KB</td>
                                     <td class="text-end">
-                                        <div class="btn-group btn-group-sm action-buttons">
+                                        <div class="action-button-set justify-content-end">
                                             <a href="{{ url_for('view_media', media_id=media.id) }}"
-                                                class="btn btn-outline-secondary" title="View">
+                                                class="btn btn-sm btn-action btn-action-view" title="View">
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                             {% if can_manage %}
                                             <a href="{{ url_for('edit_media', media_id=media.id) }}"
-                                                class="btn btn-outline-secondary" title="Edit">
+                                                class="btn btn-sm btn-action btn-action-edit" title="Edit">
                                                 <i class="fas fa-edit"></i>
                                             </a>
                                             {% endif %}
                                             <a href="{{ url_for('download_media', media_id=media.id) }}"
-                                                class="btn btn-outline-secondary" title="Download">
+                                                class="btn btn-sm btn-action btn-action-download" title="Download">
                                                 <i class="fas fa-download"></i>
                                             </a>
                                             {% if can_manage %}
-                                            <button class="btn btn-outline-danger delete-media" data-id="{{ media.id }}"
+                                            <button class="btn btn-sm btn-action btn-action-delete delete-media" data-id="{{ media.id }}"
                                                 data-filename="{{ media.filename }}" title="Delete">
                                                 <i class="fas fa-trash"></i>
                                             </button>
@@ -200,27 +199,27 @@
                                         <img src="{{ url_for('uploaded_file', filename=media.filename) }}"
                                             alt="{{ media.filename }}" class="grid-thumbnail">
                                         {% else %}
-                                        {% set icon_data = {'class': 'fa-file', 'color': '#6c757d'} %}
+                                        {% set icon_data = {'class': 'fa-file', 'color_class': 'file-icon-color-default'} %}
                                         {% if media.file_type %}
                                         {% if 'pdf' in media.file_type %}{% set icon_data = {'class': 'fa-file-pdf',
-                                        'color': '#dc3545'} %}
+                                        'color_class': 'file-icon-color-pdf'} %}
                                         {% elif 'word' in media.file_type or 'document' in media.file_type %}{% set
-                                        icon_data = {'class': 'fa-file-word', 'color': '#2b579a'} %}
+                                        icon_data = {'class': 'fa-file-word', 'color_class': 'file-icon-color-word'} %}
                                         {% elif 'excel' in media.file_type or 'sheet' in media.file_type %}{% set
-                                        icon_data = {'class': 'fa-file-excel', 'color': '#217346'} %}
+                                        icon_data = {'class': 'fa-file-excel', 'color_class': 'file-icon-color-excel'} %}
                                         {% elif 'powerpoint' in media.file_type or 'presentation' in media.file_type
-                                        %}{% set icon_data = {'class': 'fa-file-powerpoint', 'color': '#d24726'} %}
+                                        %}{% set icon_data = {'class': 'fa-file-powerpoint', 'color_class': 'file-icon-color-ppt'} %}
                                         {% elif 'video' in media.file_type %}{% set icon_data = {'class':
-                                        'fa-file-video', 'color': '#0dcaf0'} %}
+                                        'fa-file-video', 'color_class': 'file-icon-color-video'} %}
                                         {% elif 'audio' in media.file_type %}{% set icon_data = {'class':
-                                        'fa-file-audio', 'color': '#ffc107'} %}
+                                        'fa-file-audio', 'color_class': 'file-icon-color-audio'} %}
                                         {% elif 'zip' in media.file_type or 'compressed' in media.file_type %}{% set
-                                        icon_data = {'class': 'fa-file-archive', 'color': '#fd7e14'} %}
+                                        icon_data = {'class': 'fa-file-archive', 'color_class': 'file-icon-color-archive'} %}
                                         {% elif 'text' in media.file_type %}{% set icon_data = {'class': 'fa-file-alt',
-                                        'color': '#6c757d'} %}
+                                        'color_class': 'file-icon-color-text'} %}
                                         {% endif %}
                                         {% endif %}
-                                        <i class="fas {{ icon_data.class }}" style="color: {{ icon_data.color }};"></i>
+                                        <i class="fas {{ icon_data.class }} {{ icon_data.color_class }}"></i>
                                         {% endif %}
                                     </div>
                                     <div class="file-card-name" title="{{ media.filename }}">{{ media.filename }}</div>
@@ -231,17 +230,17 @@
                                         <div class="text-muted" style="font-size: 0.7rem;">Owner: {{ owner_label }}</div>
                                         {% endif %}
                                     </div>
-                                    <div class="file-card-actions">
+                                    <div class="file-card-actions action-button-set justify-content-center">
                                         <a href="{{ url_for('view_media', media_id=media.id) }}"
-                                            class="btn btn-sm btn-light" title="View">
+                                            class="btn btn-sm btn-action btn-action-view" title="View">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         <a href="{{ url_for('download_media', media_id=media.id) }}"
-                                            class="btn btn-sm btn-light" title="Download">
+                                            class="btn btn-sm btn-action btn-action-download" title="Download">
                                             <i class="fas fa-download"></i>
                                         </a>
                                         {% if can_manage %}
-                                        <button class="btn btn-sm btn-danger delete-media" data-id="{{ media.id }}"
+                                        <button class="btn btn-sm btn-action btn-action-delete delete-media" data-id="{{ media.id }}"
                                             data-filename="{{ media.filename }}" title="Delete">
                                             <i class="fas fa-trash"></i>
                                         </button>
@@ -343,69 +342,58 @@
 {% block styles %}
 {{ super() }}
 <style>
-    /* Windows 11 Color Palette */
-    :root {
-        --win11-blue: #0078d4;
-        --win11-hover: #f3f3f3;
-        --win11-active: #e5f3ff;
-        --win11-border: #e0e0e0;
-        --win11-shadow: rgba(0, 0, 0, 0.08);
-        --win11-radius: 8px;
-    }
-
-    /* Container */
     .explorer-container {
         height: calc(100vh - 100px);
-        background-color: #fafafa;
+        background: var(--color-bg);
     }
 
-    /* Sidebar */
     .explorer-sidebar {
-        background: white;
+        background: var(--color-surface);
         height: 100%;
         overflow-y: auto;
-        box-shadow: 2px 0 8px var(--win11-shadow);
+        box-shadow: 2px 0 12px rgba(var(--shadow-card-color-rgb), 0.15);
+        border-right: 1px solid var(--color-border);
     }
 
     .explorer-nav-list .list-group-item {
         border: none;
         padding: 0.65rem 1rem;
         margin-bottom: 0.15rem;
-        border-radius: var(--win11-radius);
-        color: #424242;
+        border-radius: 12px;
+        color: var(--color-text);
         font-weight: 500;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        background: transparent;
     }
 
     .explorer-nav-list .list-group-item:hover {
-        background-color: var(--win11-hover);
+        background-color: rgba(var(--color-primary-rgb), 0.08);
         transform: translateX(2px);
     }
 
     .explorer-nav-list .list-group-item.active {
-        background-color: var(--win11-active);
-        color: var(--win11-blue);
+        background-color: rgba(var(--color-primary-rgb), 0.18);
+        color: var(--color-primary);
         font-weight: 600;
-        box-shadow: inset 3px 0 0 var(--win11-blue);
+        box-shadow: inset 3px 0 0 var(--color-primary);
     }
 
     .explorer-nav-list .list-group-item.active .badge {
-        background-color: var(--win11-blue) !important;
-        color: white !important;
+        background-color: var(--color-primary) !important;
+        color: var(--color-contrast-light) !important;
     }
 
-    /* Modern Table */
     .modern-table {
         border-collapse: separate;
         border-spacing: 0;
     }
 
     .modern-table thead th {
-        background-color: #f8f9fa;
+        background-color: var(--color-surface-muted);
         border: none;
         font-weight: 600;
         font-size: 0.85rem;
-        color: #6c757d;
+        color: var(--color-text-muted);
         padding: 0.75rem 1rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -413,13 +401,13 @@
 
     .modern-table tbody tr {
         transition: all 0.2s;
-        border-bottom: 1px solid #f0f0f0;
+        border-bottom: 1px solid var(--color-border);
     }
 
     .modern-table tbody tr:hover {
-        background-color: var(--win11-hover);
+        background-color: rgba(var(--color-primary-rgb), 0.05);
         transform: scale(1.005);
-        box-shadow: 0 2px 8px var(--win11-shadow);
+        box-shadow: 0 2px 12px rgba(var(--shadow-card-color-rgb), 0.15);
     }
 
     .modern-table tbody td {
@@ -428,16 +416,48 @@
         border: none;
     }
 
-    /* File Icons */
     .file-icon {
         width: 48px;
         height: 48px;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #f8f9fa;
-        border-radius: var(--win11-radius);
+        background: var(--color-surface-muted);
+        border-radius: 12px;
         transition: all 0.2s;
+    }
+
+    .file-icon-color-default,
+    .file-icon-color-text {
+        color: var(--color-text-muted);
+    }
+
+    .file-icon-color-pdf {
+        color: var(--color-danger);
+    }
+
+    .file-icon-color-word {
+        color: var(--color-info);
+    }
+
+    .file-icon-color-excel {
+        color: var(--color-primary);
+    }
+
+    .file-icon-color-ppt {
+        color: var(--color-accent);
+    }
+
+    .file-icon-color-video {
+        color: var(--color-info);
+    }
+
+    .file-icon-color-audio {
+        color: var(--color-warning);
+    }
+
+    .file-icon-color-archive {
+        color: var(--color-secondary);
     }
 
     .file-thumbnail {
@@ -445,30 +465,30 @@
         height: 48px;
         object-fit: cover;
         border-radius: 6px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 4px rgba(var(--shadow-card-color-rgb), 0.2);
     }
 
     .file-name {
         font-size: 0.95rem;
         transition: color 0.2s;
+        color: var(--color-text);
     }
 
     .file-name:hover {
-        color: var(--win11-blue) !important;
+        color: var(--color-primary) !important;
     }
 
     .user-avatar {
         width: 28px;
         height: 28px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: white;
+        color: var(--color-contrast-light);
     }
 
-    /* Grid View */
     .file-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -477,20 +497,20 @@
     }
 
     .file-card {
-        background: white;
-        border-radius: var(--win11-radius);
+        background: var(--color-surface);
+        border-radius: 12px;
         padding: 1rem;
         text-align: center;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
         border: 2px solid transparent;
-        box-shadow: 0 2px 4px var(--win11-shadow);
+        box-shadow: 0 6px 18px rgba(var(--shadow-card-color-rgb), 0.15);
     }
 
     .file-card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
-        border-color: var(--win11-blue);
+        box-shadow: 0 12px 30px rgba(var(--shadow-card-color-rgb), 0.25);
+        border-color: var(--color-primary);
     }
 
     .file-card-icon {
@@ -512,7 +532,7 @@
     .file-card-name {
         font-size: 0.85rem;
         font-weight: 500;
-        color: #212529;
+        color: var(--color-text);
         margin-bottom: 0.5rem;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -521,7 +541,7 @@
 
     .file-card-meta {
         font-size: 0.75rem;
-        color: #6c757d;
+        color: var(--color-text-muted);
         margin-bottom: 0.75rem;
     }
 
@@ -537,62 +557,53 @@
         opacity: 1;
     }
 
-    /* View Toggle */
     .view-toggle .btn {
         border-radius: 6px;
         transition: all 0.2s;
     }
 
     .view-toggle .btn.active {
-        background-color: var(--win11-blue);
-        border-color: var(--win11-blue);
-        color: white;
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: var(--color-contrast-light);
     }
 
-    /* Search Box */
     .search-box input {
         border-radius: 20px 0 0 20px;
         transition: all 0.2s;
+        background: var(--color-surface);
+        color: var(--color-text);
+        border-color: var(--color-border);
     }
 
     .search-box input:focus {
-        box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
-        border-color: var(--win11-blue);
+        box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.25);
+        border-color: var(--color-primary);
     }
 
     .search-box .input-group-text {
         border-radius: 20px 0 0 20px;
+        background: var(--color-surface);
+        color: var(--color-text-muted);
+        border-color: var(--color-border);
     }
 
     .search-box button {
         border-radius: 0 20px 20px 0;
     }
 
-    /* Action Buttons */
-    .action-buttons .btn {
-        border-radius: 6px;
-        transition: all 0.2s;
-    }
-
-    .action-buttons .btn:hover {
-        transform: scale(1.1);
-    }
-
-    /* Status Bar */
     .status-bar {
-        background: #f8f9fa;
-        border-radius: var(--win11-radius);
+        background: var(--color-surface-muted);
+        border-radius: 12px;
         padding: 0.5rem 1rem;
     }
 
-    /* Empty State */
     .empty-state {
-        background: white;
-        border-radius: var(--win11-radius);
-        box-shadow: 0 2px 8px var(--win11-shadow);
+        background: var(--color-surface);
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(var(--shadow-card-color-rgb), 0.15);
     }
 
-    /* Animations */
     @keyframes fadeIn {
         from {
             opacity: 0;
@@ -609,23 +620,22 @@
         animation: fadeIn 0.3s ease-out;
     }
 
-    /* Scrollbar */
     .files-content::-webkit-scrollbar {
         width: 8px;
     }
 
     .files-content::-webkit-scrollbar-track {
-        background: #f1f1f1;
+        background: var(--color-surface-muted);
         border-radius: 10px;
     }
 
     .files-content::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
+        background: rgba(var(--color-primary-rgb), 0.35);
         border-radius: 10px;
     }
 
     .files-content::-webkit-scrollbar-thumb:hover {
-        background: #a8a8a8;
+        background: rgba(var(--color-primary-rgb), 0.5);
     }
 </style>
 {% endblock %}

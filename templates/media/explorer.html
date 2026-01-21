@@ -2,50 +2,58 @@
 
 {% block media_content %}
 <div class="explorer-container container-fluid p-0">
-    <div class="row g-0 h-100">
-        <!-- Sidebar -->
-        <div class="col-md-2 col-lg-2 explorer-sidebar border-end px-0">
-            <div class="p-2 px-3">
-                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
-                    <h6 class="mb-0 text-uppercase text-muted small fw-bold">Workspaces</h6>
-                    <a href="#" class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal"
+    <div class="explorer-shell" id="mediaExplorerShell">
+        <aside class="explorer-sidebar" id="workspaceSidebar">
+            <div class="workspace-header">
+                <h6 class="mb-0 text-uppercase text-muted small fw-bold workspace-title">Workspaces</h6>
+                <div class="workspace-actions">
+                    <a href="#" class="btn btn-sm btn-primary rounded-pill px-3 workspace-new" data-bs-toggle="modal"
                         data-bs-target="#newProjectModal" title="New Project">
-                        <i class="fas fa-plus fa-xs me-1"></i> New
+                        <i class="fas fa-plus fa-xs"></i>
+                        <span class="workspace-label">New</span>
                     </a>
-                </div>
-                <div class="list-group list-group-flush explorer-nav-list">
-                    <a href="{{ url_for('list_media') }}"
-                        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {% if not current_project_id %}active{% endif %}">
-                        <span><i class="fas fa-inbox me-2"></i>All Files</span>
-                        <span class="badge bg-secondary-subtle text-secondary rounded-pill">{{ all_media_count }}</span>
-                    </a>
-                    {% for project in projects %}
-                    <a href="{{ url_for('list_media', project_id=project.id) }}"
-                        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {% if current_project_id == project.id %}active{% endif %}">
-                        <span><i class="fas fa-folder me-2"></i>{{ project.name }}</span>
-                        <span class="badge bg-secondary-subtle text-secondary rounded-pill">{{ project.media_count
-                            }}</span>
-                    </a>
-                    {% endfor %}
+                    <button type="button" class="icon-btn" id="workspacePinBtn" aria-pressed="false"
+                        title="Pin workspace rail" aria-label="Pin workspace rail">
+                        <i class="fas fa-thumbtack"></i>
+                    </button>
                 </div>
             </div>
-        </div>
+            <div class="list-group list-group-flush explorer-nav-list">
+                <a href="{{ url_for('list_media') }}"
+                    class="list-group-item list-group-item-action {% if not current_project_id %}active{% endif %}"
+                    title="All Files">
+                    <span>
+                        <i class="fas fa-inbox"></i>
+                        <span class="workspace-label">All Files</span>
+                    </span>
+                    <span class="badge bg-secondary-subtle text-secondary rounded-pill workspace-count">{{ all_media_count }}</span>
+                </a>
+                {% for project in projects %}
+                <a href="{{ url_for('list_media', project_id=project.id) }}"
+                    class="list-group-item list-group-item-action {% if current_project_id == project.id %}active{% endif %}"
+                    title="{{ project.name }}">
+                    <span>
+                        <i class="fas fa-folder"></i>
+                        <span class="workspace-label">{{ project.name }}</span>
+                    </span>
+                    <span class="badge bg-secondary-subtle text-secondary rounded-pill workspace-count">{{ project.media_count }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </aside>
 
-        <!-- Main Content Area -->
-        <div class="col-md-10 col-lg-10">
+        <div class="explorer-main">
             <div class="h-100 d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom px-3 pt-3">
-                    <div>
+                <div class="workspace-summary">
+                    <div class="workspace-summary-text">
                         <h4 class="mb-1 text-dark fw-bold">
                             {% set current_project = projects|selectattr('id', 'equalto', current_project_id)|first %}
-                            <i
-                                class="fas fa-{{ 'folder-open' if current_project_id else 'inbox' }} me-2 text-primary"></i>
+                            <i class="fas fa-{{ 'folder-open' if current_project_id else 'inbox' }} me-2 text-primary"></i>
                             {{ current_project.name if current_project else 'All Files' }}
                         </h4>
                         <p class="text-muted small mb-0" id="fileCount">{{ media_items|length }} items</p>
                     </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <!-- View Toggle -->
+                    <div class="workspace-summary-actions d-flex align-items-center gap-2 flex-wrap justify-content-end">
                         <div class="btn-group btn-group-sm view-toggle" role="group">
                             <button type="button" class="btn btn-outline-secondary active" id="listViewBtn"
                                 title="List View">
@@ -56,8 +64,7 @@
                             </button>
                         </div>
 
-                        <!-- Search -->
-                        <div class="input-group input-group-sm search-box" style="width: 250px;">
+                        <div class="input-group input-group-sm search-box">
                             <span class="input-group-text bg-white border-end-0"><i
                                     class="fas fa-search text-muted"></i></span>
                             <input type="text" id="searchInput" class="form-control border-start-0 ps-0"
@@ -68,37 +75,37 @@
                             </button>
                         </div>
 
-                        <a href="{{ url_for('upload_media') }}"
-                            class="btn btn-primary btn-sm px-3 rounded-pill shadow-sm">
+                        <a href="{{ url_for('upload_media') }}" class="btn btn-primary btn-sm px-3 rounded-pill shadow-sm">
                             <i class="fas fa-cloud-upload-alt me-1"></i> Upload
                         </a>
                     </div>
                 </div>
 
                 <!-- Files Content -->
-                <div class="files-content flex-grow-1 overflow-auto px-3">
+                <div class="files-content flex-grow-1">
                     {% if media_items %}
 
                     <!-- List View -->
                     <div id="listView" class="view-mode">
-                        <table class="table table-hover align-middle modern-table">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width: 40%;">Name</th>
-                                    <th style="width: 15%;">Owner</th>
-                                    <th style="width: 15%;">Date Modified</th>
-                                    <th style="width: 10%;">Size</th>
-                                    <th style="width: 20%;" class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for media in media_items %}
-                                <tr class="media-item" data-filename="{{ media.filename|lower }}"
-                                    data-id="{{ media.id }}">
-                                    {% set can_manage = (media.user_id == current_user.id) or (current_user.is_admin and not current_user.is_view_only_admin) %}
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="file-icon me-3">
+                        <div class="table-scroll" tabindex="0">
+                            <table class="table table-hover align-middle modern-table media-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 26%;">Name</th>
+                                        <th style="width: 18%;">Owner</th>
+                                        <th style="width: 16%;">Date Modified</th>
+                                        <th style="width: 10%;">Size</th>
+                                        <th style="width: 30%;" class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for media in media_items %}
+                                    <tr class="media-item" data-filename="{{ media.filename|lower }}"
+                                        data-id="{{ media.id }}">
+                                        {% set can_manage = (media.user_id == current_user.id) or (current_user.is_admin and not current_user.is_view_only_admin) %}
+                                        <td class="media-name-cell">
+                                            <div class="d-flex align-items-center">
+                                                <div class="file-icon me-3">
                                                 {% if media.file_type and media.file_type.startswith('image/') %}
                                                 <img src="{{ url_for('uploaded_file', filename=media.filename) }}"
                                                     alt="thumbnail" class="file-thumbnail">
@@ -129,7 +136,8 @@
                                             </div>
                                             <div class="file-info">
                                                 <a href="{{ url_for('view_media', media_id=media.id) }}"
-                                                    class="file-name text-decoration-none text-dark fw-medium">
+                                                    class="file-name text-decoration-none text-dark fw-medium"
+                                                    title="{{ media.filename }}">
                                                     {{ media.filename }}
                                                 </a>
                                                 <div class="file-type small text-muted">{{ media.file_type or 'Unknown'
@@ -182,8 +190,9 @@
                                     </td>
                                 </tr>
                                 {% endfor %}
-                            </tbody>
-                        </table>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <!-- Grid View -->
@@ -347,23 +356,19 @@
         background: var(--color-bg);
     }
 
-    .explorer-sidebar {
-        background: var(--color-surface);
-        height: 100%;
-        overflow-y: auto;
-        box-shadow: 2px 0 12px rgba(var(--shadow-card-color-rgb), 0.15);
-        border-right: 1px solid var(--color-border);
-    }
-
     .explorer-nav-list .list-group-item {
         border: none;
-        padding: 0.65rem 1rem;
-        margin-bottom: 0.15rem;
+        padding: 0.7rem 0.9rem;
+        margin-bottom: 0.25rem;
         border-radius: 12px;
         color: var(--color-text);
         font-weight: 500;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
     }
 
     .explorer-nav-list .list-group-item:hover {
@@ -386,6 +391,11 @@
     .modern-table {
         border-collapse: separate;
         border-spacing: 0;
+    }
+
+    .media-table {
+        width: 100%;
+        min-width: 980px;
     }
 
     .modern-table thead th {
@@ -416,15 +426,32 @@
         border: none;
     }
 
+    .media-name-cell .file-info {
+        min-width: 0;
+    }
+
+    .media-name-cell .file-name {
+        display: inline-block;
+        max-width: clamp(140px, 22vw, 320px);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     .file-icon {
-        width: 48px;
-        height: 48px;
+        width: 44px;
+        height: 44px;
         display: flex;
         align-items: center;
         justify-content: center;
         background: var(--color-surface-muted);
         border-radius: 12px;
         transition: all 0.2s;
+    }
+
+    .table-scroll {
+        width: 100%;
+        min-width: 0;
     }
 
     .file-icon-color-default,
@@ -568,6 +595,10 @@
         color: var(--color-contrast-light);
     }
 
+    .search-box {
+        width: min(280px, 48vw);
+    }
+
     .search-box input {
         border-radius: 20px 0 0 20px;
         transition: all 0.2s;
@@ -620,22 +651,50 @@
         animation: fadeIn 0.3s ease-out;
     }
 
-    .files-content::-webkit-scrollbar {
+    .files-content::-webkit-scrollbar,
+    .table-scroll::-webkit-scrollbar {
         width: 8px;
+        height: 8px;
     }
 
-    .files-content::-webkit-scrollbar-track {
+    .files-content::-webkit-scrollbar-track,
+    .table-scroll::-webkit-scrollbar-track {
         background: var(--color-surface-muted);
         border-radius: 10px;
     }
 
-    .files-content::-webkit-scrollbar-thumb {
+    .files-content::-webkit-scrollbar-thumb,
+    .table-scroll::-webkit-scrollbar-thumb {
         background: rgba(var(--color-primary-rgb), 0.35);
         border-radius: 10px;
     }
 
-    .files-content::-webkit-scrollbar-thumb:hover {
+    .files-content::-webkit-scrollbar-thumb:hover,
+    .table-scroll::-webkit-scrollbar-thumb:hover {
         background: rgba(var(--color-primary-rgb), 0.5);
+    }
+
+    @media (max-width: 768px) {
+        .workspace-summary {
+            flex-direction: column;
+            align-items: flex-start;
+            margin: 1rem 1rem 0.75rem;
+        }
+
+        .workspace-summary-actions {
+            width: 100%;
+            justify-content: flex-start;
+            gap: 0.75rem;
+        }
+
+        .workspace-summary-actions .search-box,
+        .search-box {
+            width: 100%;
+        }
+
+        .media-table {
+            min-width: 900px;
+        }
     }
 </style>
 {% endblock %}
@@ -645,6 +704,43 @@
 {% set active_project = projects|selectattr('id', 'equalto', current_project_id)|first %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const explorerShell = document.getElementById('mediaExplorerShell');
+        const workspacePinBtn = document.getElementById('workspacePinBtn');
+        const workspacePinnedKey = 'policylens.media.workspace.pinned';
+
+        const applyWorkspacePinnedState = () => {
+            if (!explorerShell) {
+                return;
+            }
+            const pinned = localStorage.getItem(workspacePinnedKey) === 'true';
+            explorerShell.classList.toggle('workspace-pinned', pinned);
+            if (workspacePinBtn) {
+                workspacePinBtn.classList.toggle('is-active', pinned);
+                workspacePinBtn.setAttribute('aria-pressed', pinned ? 'true' : 'false');
+                workspacePinBtn.setAttribute('title', pinned ? 'Unpin workspace rail' : 'Pin workspace rail');
+                workspacePinBtn.setAttribute('aria-label', pinned ? 'Unpin workspace rail' : 'Pin workspace rail');
+            }
+        };
+
+        applyWorkspacePinnedState();
+
+        workspacePinBtn?.addEventListener('click', () => {
+            if (!explorerShell) {
+                return;
+            }
+            const nextPinned = !explorerShell.classList.contains('workspace-pinned');
+            explorerShell.classList.toggle('workspace-pinned', nextPinned);
+            if (nextPinned) {
+                localStorage.setItem(workspacePinnedKey, 'true');
+            } else {
+                localStorage.removeItem(workspacePinnedKey);
+            }
+            workspacePinBtn.classList.toggle('is-active', nextPinned);
+            workspacePinBtn.setAttribute('aria-pressed', nextPinned ? 'true' : 'false');
+            workspacePinBtn.setAttribute('title', nextPinned ? 'Unpin workspace rail' : 'Pin workspace rail');
+            workspacePinBtn.setAttribute('aria-label', nextPinned ? 'Unpin workspace rail' : 'Pin workspace rail');
+        });
+
         // View Toggle
         const listViewBtn = document.getElementById('listViewBtn');
         const gridViewBtn = document.getElementById('gridViewBtn');

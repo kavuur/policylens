@@ -62,109 +62,120 @@
 </head>
 
 <body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-2 sidebar p-0">
-                <div class="text-center mb-4">
-                    <h4 class="text-white py-3">POLICY LENS
-                    </h4>
-                </div>
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}"
-                            href="{{ url_for('index') }}">
-                            <i class="fas fa-home me-2"></i> Home
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'list_projects' %}active{% endif %}"
-                            href="{{ url_for('list_projects') }}">
-                            <i class="fas fa-folder me-2"></i> Projects
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'list_media' %}active{% endif %}"
-                            href="{{ url_for('list_media') }}">
-                            <i class="fas fa-photo-video me-2"></i> Media
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'list_codebooks' or request.endpoint == 'create_codebook' or request.endpoint == 'edit_codebook' %}active{% endif %}"
-                            href="{{ url_for('list_codebooks') }}">
-                            <i class="fas fa-book me-2"></i> Codebooks
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'research' %}active{% endif %}"
-                            href="{{ url_for('research') }}">
-                            <i class="fas fa-search me-2"></i> Research
-                        </a>
-                    </li>
-                    <li class="nav-item mt-auto">
-                        <a class="nav-link {% if request.endpoint == 'profile' %}active{% endif %}"
-                            href="{{ url_for('profile') }}">
-                            <i class="fas fa-user me-2"></i> Profile
-                        </a>
-                    </li>
-                    {% if current_user.is_authenticated and current_user.is_admin and not
-                    current_user.is_view_only_admin %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'list_users' %}active{% endif %}"
-                            href="{{ url_for('list_users') }}">
-                            <i class="fas fa-users-cog me-2"></i> Users
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li class="nav-item">
-                        <a class="nav-link text-danger" href="#">
-                            <i class="fas fa-sign-out-alt me-2"></i> Logout
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- Main Content -->
-            <div class="col-md-10 p-0">
-                <!-- Topbar -->
-                <nav class="navbar navbar-expand-lg topbar">
-                    <div class="container-fluid">
-                        <button class="btn btn-link text-dark d-md-none" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false"
-                            aria-label="Toggle navigation">
-                            <i class="fas fa-bars"></i>
+    <div class="app-shell">
+        <aside class="app-sidebar sidebar" id="appSidebar">
+            <div class="sidebar-inner">
+                <div class="sidebar-header d-flex align-items-center justify-content-between">
+                    <div class="sidebar-brand">
+                        <h4 class="text-white mb-0 sidebar-logo-text">POLICY LENS</h4>
+                    </div>
+                    <div class="sidebar-controls d-flex align-items-center gap-2">
+                        <button type="button" class="icon-btn icon-btn-ghost" id="sidebarPinBtn" aria-pressed="false"
+                            title="Pin sidebar" aria-label="Pin sidebar">
+                            <i class="fas fa-thumbtack"></i>
                         </button>
-                        <div class="ms-auto d-flex align-items-center">
-                            <button class="btn btn-outline-light btn-sm me-3" id="themeToggle" title="Toggle theme">
-                                <i class="fas fa-adjust"></i>
-                            </button>
-                            {% if current_user.is_authenticated %}
-                            <span class="navbar-text me-3">Welcome, {{ current_user.username }}</span>
-                            <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
-                            {% else %}
-                            <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-sm me-2">Login</a>
-                            <a href="{{ url_for('register') }}" class="btn btn-primary btn-sm">Register</a>
-                            {% endif %}
-                        </div>
                     </div>
-                </nav>
-
-                <!-- Page Content -->
-                <main class="main-content">
-                    {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                    {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                    {% endfor %}
-                    {% endif %}
-                    {% endwith %}
-
-                    {% block content %}{% endblock %}
-                </main>
+                </div>
+                <div class="sidebar-nav-wrapper">
+                    <ul class="nav flex-column sidebar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}"
+                                href="{{ url_for('index') }}" title="Home" aria-label="Home">
+                                <i class="fas fa-home"></i>
+                                <span class="nav-label">Home</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'list_projects' %}active{% endif %}"
+                                href="{{ url_for('list_projects') }}" title="Projects" aria-label="Projects">
+                                <i class="fas fa-folder"></i>
+                                <span class="nav-label">Projects</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'list_media' %}active{% endif %}"
+                                href="{{ url_for('list_media') }}" title="Media" aria-label="Media">
+                                <i class="fas fa-photo-video"></i>
+                                <span class="nav-label">Media</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'list_codebooks' or request.endpoint == 'create_codebook' or request.endpoint == 'edit_codebook' %}active{% endif %}"
+                                href="{{ url_for('list_codebooks') }}" title="Codebooks" aria-label="Codebooks">
+                                <i class="fas fa-book"></i>
+                                <span class="nav-label">Codebooks</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'research' %}active{% endif %}"
+                                href="{{ url_for('research') }}" title="Research" aria-label="Research">
+                                <i class="fas fa-search"></i>
+                                <span class="nav-label">Research</span>
+                            </a>
+                        </li>
+                        <li class="nav-item mt-auto nav-item-bottom">
+                            <a class="nav-link {% if request.endpoint == 'profile' %}active{% endif %}"
+                                href="{{ url_for('profile') }}" title="Profile" aria-label="Profile">
+                                <i class="fas fa-user"></i>
+                                <span class="nav-label">Profile</span>
+                            </a>
+                        </li>
+                        {% if current_user.is_authenticated and current_user.is_admin and not current_user.is_view_only_admin %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'list_users' %}active{% endif %}"
+                                href="{{ url_for('list_users') }}" title="User Management" aria-label="User Management">
+                                <i class="fas fa-users-cog"></i>
+                                <span class="nav-label">Users</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li class="nav-item nav-item-bottom">
+                            <a class="nav-link text-danger" href="{{ url_for('logout') }}" title="Logout" aria-label="Logout">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span class="nav-label">Logout</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
+        </aside>
+
+        <div class="app-main">
+            <nav class="navbar navbar-expand-lg topbar">
+                <div class="topbar-content d-flex align-items-center w-100">
+                    <button class="btn btn-link text-dark d-lg-none me-2" type="button" id="sidebarMobileToggle"
+                        aria-label="Toggle sidebar" title="Toggle sidebar">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="ms-auto d-flex align-items-center gap-2">
+                        <button class="btn btn-outline-light btn-sm" id="themeToggle" title="Toggle theme">
+                            <i class="fas fa-adjust"></i>
+                        </button>
+                        {% if current_user.is_authenticated %}
+                        <span class="navbar-text">Welcome, {{ current_user.username }}</span>
+                        <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
+                        {% else %}
+                        <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-sm">Login</a>
+                        <a href="{{ url_for('register') }}" class="btn btn-primary btn-sm">Register</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </nav>
+
+            <main class="main-content">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </main>
         </div>
     </div>
 
@@ -177,25 +188,71 @@
 
     <!-- AJAX setup -->
     <script>
-                document.addEventListener('DOMContentLoaded', function () {
-                    const toggleBtn = document.getElementById('themeToggle');
-                    if (!toggleBtn) {
-                        return;
-                    }
-                    const updateIcon = () => {
-                        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-                        toggleBtn.innerHTML = isDark
-                            ? '<i class="fas fa-sun"></i>'
-                            : '<i class="fas fa-moon"></i>';
-                    };
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggleBtn = document.getElementById('themeToggle');
+            if (toggleBtn) {
+                const updateIcon = () => {
+                    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                    toggleBtn.innerHTML = isDark
+                        ? '<i class="fas fa-sun"></i>'
+                        : '<i class="fas fa-moon"></i>';
+                };
+                updateIcon();
+                toggleBtn.addEventListener('click', () => {
+                    const current = document.documentElement.getAttribute('data-theme');
+                    const next = current === 'dark' ? 'light' : 'dark';
+                    window.PolicyLensTheme.set(next);
                     updateIcon();
-                    toggleBtn.addEventListener('click', () => {
-                        const current = document.documentElement.getAttribute('data-theme');
-                        const next = current === 'dark' ? 'light' : 'dark';
-                        window.PolicyLensTheme.set(next);
-                        updateIcon();
-                    });
                 });
+            }
+
+            const body = document.body;
+            const pinBtn = document.getElementById('sidebarPinBtn');
+            const mobileToggle = document.getElementById('sidebarMobileToggle');
+            const pinnedKey = 'policylens.sidebar.pinned';
+
+            const updateSidebarPinnedState = () => {
+                const pinned = localStorage.getItem(pinnedKey) === 'true';
+                body.classList.toggle('sidebar-pinned', pinned);
+                if (pinBtn) {
+                    pinBtn.classList.toggle('is-active', pinned);
+                    pinBtn.setAttribute('aria-pressed', pinned ? 'true' : 'false');
+                    pinBtn.setAttribute('title', pinned ? 'Unpin sidebar' : 'Pin sidebar');
+                    pinBtn.setAttribute('aria-label', pinned ? 'Unpin sidebar' : 'Pin sidebar');
+                }
+            };
+
+            updateSidebarPinnedState();
+
+            pinBtn?.addEventListener('click', () => {
+                const nextPinned = !body.classList.contains('sidebar-pinned');
+                body.classList.toggle('sidebar-pinned', nextPinned);
+                if (nextPinned) {
+                    localStorage.setItem(pinnedKey, 'true');
+                } else {
+                    localStorage.removeItem(pinnedKey);
+                }
+                pinBtn.classList.toggle('is-active', nextPinned);
+                pinBtn.setAttribute('aria-pressed', nextPinned ? 'true' : 'false');
+                pinBtn.setAttribute('title', nextPinned ? 'Unpin sidebar' : 'Pin sidebar');
+                pinBtn.setAttribute('aria-label', nextPinned ? 'Unpin sidebar' : 'Pin sidebar');
+            });
+
+            mobileToggle?.addEventListener('click', () => {
+                body.classList.toggle('sidebar-mobile-open');
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!body.classList.contains('sidebar-mobile-open')) {
+                    return;
+                }
+                const clickedToggle = event.target.closest('#sidebarMobileToggle');
+                const clickedSidebar = event.target.closest('.app-sidebar');
+                if (!clickedSidebar && !clickedToggle) {
+                    body.classList.remove('sidebar-mobile-open');
+                }
+            });
+        });
         // AJAX error handling
         $(document).ajaxError(function (event, jqXHR, settings, error) {
             console.error('AJAX Error:', error);

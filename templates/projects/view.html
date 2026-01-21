@@ -562,7 +562,7 @@
                                 </div>
                             </div>
                             {% endif %}
-                            <div id="excerptsAccordion" class="accordion"></div>
+                            <div id="excerptsAccordion" class="accordion excerpts-accordion"></div>
                             <div id="excerptsEmpty" class="text-center py-4 d-none list-empty-state">
                                 <i class="fas fa-quote-right fa-3x text-muted mb-3"></i>
                                 <p class="text-muted">No excerpts found for this project.</p>
@@ -1131,8 +1131,9 @@
                 </li>`).join('');
             actions.push(`
                 <div class="btn-group btn-group-sm">
-                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-file-export me-1"></i> Export
+                    <button type="button" class="btn btn-action btn-action-download dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-file-export"></i>
+                        <span class="d-none d-md-inline">Export</span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
                         ${exportMenu}
@@ -1140,18 +1141,18 @@
                 </div>`);
             if (canManageExcerpts && !isManual && group.analysis_id) {
                 actions.push(`
-                    <button class="btn btn-outline-secondary btn-sm analysis-rename"
-                        data-analysis-id="${group.analysis_id}" data-analysis-name="${safeNameAttr}">
+                    <button type="button" class="btn btn-sm btn-action btn-action-edit analysis-rename"
+                        data-analysis-id="${group.analysis_id}" data-analysis-name="${safeNameAttr}" title="Rename analysis">
                         <i class="fas fa-pen"></i>
                     </button>`);
                 actions.push(`
-                    <button class="btn btn-outline-danger btn-sm analysis-delete"
-                        data-analysis-id="${group.analysis_id}" data-analysis-name="${safeNameAttr}">
+                    <button type="button" class="btn btn-sm btn-action btn-action-delete analysis-delete"
+                        data-analysis-id="${group.analysis_id}" data-analysis-name="${safeNameAttr}" title="Delete analysis">
                         <i class="fas fa-trash"></i>
                     </button>`);
             }
             return actions.length
-                ? `<div class="d-flex flex-wrap gap-2 align-items-center">${actions.join('')}</div>`
+                ? `<div class="action-button-set justify-content-end flex-wrap">${actions.join('')}</div>`
                 : '';
         }
 
@@ -1249,7 +1250,7 @@
 
             return `
                 <div class="table-responsive">
-                    <table class="table table-striped align-middle mb-0">
+                    <table class="table table-striped table-hover align-middle mb-0 list-table">
                         <thead class="table-light">
                             <tr>
                                 ${checkboxHeader}
@@ -1355,7 +1356,10 @@
         function renderAccordionSection(group, index, isManual = false) {
             const collapseId = `analysis-${isManual ? 'manual' : group.analysis_id}-${index}`;
             const headingId = `${collapseId}-heading`;
-            const expanded = index === 0 ? 'show' : '';
+            const isExpanded = false;
+            const collapseStateClass = isExpanded ? 'show' : '';
+            const buttonStateClass = isExpanded ? '' : 'collapsed';
+            const ariaExpanded = isExpanded ? 'true' : 'false';
             const title = isManual ? 'Manual Excerpts' : escapeHtml(group.analysis_name || 'Analysis');
             const subtitle = isManual ? '' : `<span class="text-muted small ms-2">${formatDate(group.created_at)}</span>`;
             const badge = `<span class="badge bg-secondary ms-2">${group.excerpts.length}</span>`;
@@ -1364,7 +1368,7 @@
                 <div class="accordion-item" data-analysis-id="${group.analysis_id || ''}">
                     <h2 class="accordion-header" id="${headingId}">
                         <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
-                            <button class="accordion-button flex-grow-1 ${expanded ? '' : 'collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="${expanded ? 'true' : 'false'}" aria-controls="${collapseId}">
+                            <button class="accordion-button flex-grow-1 ${buttonStateClass}" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="${ariaExpanded}" aria-controls="${collapseId}">
                                 <span class="fw-semibold">${title}</span>
                                 ${subtitle}
                                 ${badge}
@@ -1372,7 +1376,7 @@
                             ${actionsMarkup}
                         </div>
                     </h2>
-                    <div id="${collapseId}" class="accordion-collapse collapse ${expanded}" aria-labelledby="${headingId}" data-bs-parent="#excerptsAccordion">
+                    <div id="${collapseId}" class="accordion-collapse collapse ${collapseStateClass}" aria-labelledby="${headingId}" data-bs-parent="#excerptsAccordion">
                         <div class="accordion-body">
                             ${renderExcerptTable(group.excerpts)}
                         </div>

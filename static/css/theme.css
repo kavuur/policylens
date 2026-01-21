@@ -442,7 +442,7 @@ textarea::placeholder {
     margin-bottom: 1rem;
     background: var(--color-surface);
     box-shadow: 0 18px 35px rgba(var(--shadow-card-color-rgb), 0.16);
-    overflow: hidden;
+    overflow: visible;
 }
 
 .excerpts-accordion .accordion-item:last-child {

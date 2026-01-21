@@ -288,7 +288,7 @@ textarea::placeholder {
     align-items: center;
     gap: 0.35rem;
     background: rgba(var(--color-primary-rgb), 0.12);
-    color: var(--color-text);
+    color: var(--color-text) !important;
     box-shadow: 0 6px 16px rgba(var(--shadow-card-color-rgb), 0.15);
     transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
@@ -299,6 +299,7 @@ textarea::placeholder {
 
 .btn-action i {
     font-size: 0.85rem;
+    color: inherit;
 }
 
 .btn-action:hover,
@@ -314,43 +315,43 @@ textarea::placeholder {
 
 .btn-action-view {
     background: rgba(var(--color-info-rgb), 0.22);
-    color: var(--color-info);
+    color: var(--color-info) !important;
     box-shadow: inset 0 0 0 1px rgba(var(--color-info-rgb), 0.5);
 }
 
 .btn-action-download {
     background: rgba(var(--color-primary-rgb), 0.22);
-    color: var(--color-primary);
+    color: var(--color-primary) !important;
     box-shadow: inset 0 0 0 1px rgba(var(--color-primary-rgb), 0.5);
 }
 
 .btn-action-edit {
     background: rgba(var(--color-secondary-rgb), 0.25);
-    color: var(--color-secondary);
+    color: var(--color-secondary) !important;
     box-shadow: inset 0 0 0 1px rgba(var(--color-secondary-rgb), 0.45);
 }
 
 .btn-action-descriptor {
     background: rgba(var(--color-accent-rgb), 0.2);
-    color: var(--color-accent);
+    color: var(--color-accent) !important;
     box-shadow: inset 0 0 0 1px rgba(var(--color-accent-rgb), 0.45);
 }
 
 .btn-action-delete {
     background: rgba(var(--color-danger-rgb), 0.25);
-    color: var(--color-danger);
+    color: var(--color-danger) !important;
     box-shadow: inset 0 0 0 1px rgba(var(--color-danger-rgb), 0.45);
 }
 
 .btn-action-share {
     background: rgba(var(--color-warning-rgb), 0.25);
-    color: var(--color-contrast-dark);
+    color: var(--color-contrast-dark) !important;
     box-shadow: inset 0 0 0 1px rgba(var(--color-warning-rgb), 0.45);
 }
 
 .action-button-set {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.35rem;
 }
 

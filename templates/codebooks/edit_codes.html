@@ -78,13 +78,19 @@
                             <td class="text-muted">{{ code.description or '' }}</td>
                             <td class="text-center">
                                 {% if can_manage_codebook %}
-                                <button class="btn btn-outline-primary btn-sm edit-btn" title="Edit Code"><i
-                                        class="fas fa-edit"></i></button>
-                                <button class="btn btn-outline-danger btn-sm delete-btn" title="Delete Code"><i
-                                        class="fas fa-trash"></i></button>
-                                <button class="btn btn-outline-success btn-sm add-btn" data-level="subcode"
-                                    data-parent-id="{{ code.id }}" data-parent-name="{{ code.code }}"
-                                    title="Add Subcode"><i class="fas fa-plus"></i></button>
+                                <div class="action-button-set justify-content-center">
+                                    <button class="btn btn-sm btn-action btn-action-edit edit-btn" title="Edit Code">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-action btn-action-delete delete-btn" title="Delete Code">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-action btn-action-descriptor add-btn" data-level="subcode"
+                                        data-parent-id="{{ code.id }}" data-parent-name="{{ code.code }}"
+                                        title="Add Subcode">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
                                 {% endif %}
                             </td>
                         </tr>
@@ -97,13 +103,19 @@
                             <td class="text-muted">{{ subcode.description or '' }}</td>
                             <td class="text-center">
                                 {% if can_manage_codebook %}
-                                <button class="btn btn-outline-primary btn-sm edit-btn" title="Edit Subcode"><i
-                                        class="fas fa-edit"></i></button>
-                                <button class="btn btn-outline-danger btn-sm delete-btn" title="Delete Subcode"><i
-                                        class="fas fa-trash"></i></button>
-                                <button class="btn btn-outline-info btn-sm add-btn" data-level="subsubcode"
-                                    data-parent-id="{{ subcode.id }}" data-parent-name="{{ subcode.subcode }}"
-                                    title="Add Sub-Subcode"><i class="fas fa-plus"></i></button>
+                                <div class="action-button-set justify-content-center">
+                                    <button class="btn btn-sm btn-action btn-action-edit edit-btn" title="Edit Subcode">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-action btn-action-delete delete-btn" title="Delete Subcode">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-action btn-action-descriptor add-btn" data-level="subsubcode"
+                                        data-parent-id="{{ subcode.id }}" data-parent-name="{{ subcode.subcode }}"
+                                        title="Add Sub-Subcode">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
                                 {% endif %}
                             </td>
                         </tr>
@@ -117,10 +129,14 @@
                             <td class="text-muted">{{ subsubcode.description or '' }}</td>
                             <td class="text-center">
                                 {% if can_manage_codebook %}
-                                <button class="btn btn-outline-primary btn-sm edit-btn" title="Edit Sub-Subcode"><i
-                                        class="fas fa-edit"></i></button>
-                                <button class="btn btn-outline-danger btn-sm delete-btn" title="Delete Sub-Subcode"><i
-                                        class="fas fa-trash"></i></button>
+                                <div class="action-button-set justify-content-center">
+                                    <button class="btn btn-sm btn-action btn-action-edit edit-btn" title="Edit Sub-Subcode">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-action btn-action-delete delete-btn" title="Delete Sub-Subcode">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
                                 {% endif %}
                             </td>
                         </tr>

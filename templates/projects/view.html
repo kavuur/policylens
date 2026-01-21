@@ -150,22 +150,24 @@
                                     <td>{{ media.file_type or 'N/A' }}</td>
                                     <td>{{ media.uploaded_at.strftime('%Y-%m-%d') }}</td>
                                     <td>
-                                        <a href="{{ url_for('view_media', media_id=media.id) }}"
-                                            class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="{{ url_for('download_media', media_id=media.id) }}"
-                                            class="btn btn-sm btn-outline-success">
-                                            <i class="fas fa-download"></i>
-                                        </a>
-                                        {% if can_manage_project %}
-                                        <button type="button" class="btn btn-sm btn-outline-danger remove-project-media"
-                                            data-media-id="{{ media.id }}"
-                                            data-filename="{{ media.filename }}"
-                                            title="Remove from project">
-                                            <i class="fas fa-unlink"></i>
-                                        </button>
-                                        {% endif %}
+                                        <div class="action-button-set justify-content-start">
+                                            <a href="{{ url_for('view_media', media_id=media.id) }}"
+                                                class="btn btn-sm btn-action btn-action-view" title="View media">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('download_media', media_id=media.id) }}"
+                                                class="btn btn-sm btn-action btn-action-download" title="Download media">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            {% if can_manage_project %}
+                                            <button type="button" class="btn btn-sm btn-action btn-action-delete remove-project-media"
+                                                data-media-id="{{ media.id }}"
+                                                data-filename="{{ media.filename }}"
+                                                title="Remove from project">
+                                                <i class="fas fa-unlink"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -1219,16 +1221,16 @@
                     ? `<td><input type="checkbox" class="form-check-input move-excerpt-checkbox" data-id="${excerpt.id}"></td>`
                     : '';
                 const actionButtons = [
-                    `<button class="btn btn-sm btn-outline-primary view-excerpt" data-id="${excerpt.id}" title="View">
+                    `<button class="btn btn-sm btn-action btn-action-view view-excerpt" data-id="${excerpt.id}" title="View excerpt">
                         <i class="fas fa-eye"></i>
                     </button>`
                 ];
                 if (canManageExcerpts) {
                     actionButtons.push(
-                        `<button class="btn btn-sm btn-outline-secondary edit-excerpt" data-id="${excerpt.id}" title="Edit">
+                        `<button class="btn btn-sm btn-action btn-action-edit edit-excerpt" data-id="${excerpt.id}" title="Edit excerpt">
                             <i class="fas fa-edit"></i>
                         </button>`,
-                        `<button class="btn btn-sm btn-outline-danger delete-excerpt" data-id="${excerpt.id}" title="Delete">
+                        `<button class="btn btn-sm btn-action btn-action-delete delete-excerpt" data-id="${excerpt.id}" title="Delete excerpt">
                             <i class="fas fa-trash"></i>
                         </button>`
                     );
@@ -1244,7 +1246,11 @@
                         <td class="text-snippet" title="${escapeHtml(excerptFull)}">${excerptDisplay}</td>
                         <td class="text-snippet" title="${escapeHtml(explanationFull)}">${explanationDisplay}</td>
                         <td>${formatDate(excerpt.created_at)}</td>
-                        <td class="text-nowrap">${actionButtons.join(' ')}</td>
+                        <td class="text-nowrap">
+                            <div class="action-button-set justify-content-start">
+                                ${actionButtons.join('')}
+                            </div>
+                        </td>
                     </tr>`;
             }).join('');
 

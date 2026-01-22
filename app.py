@@ -1970,16 +1970,6 @@ def dashboard():
         # Recent media
         recent_media = Media.query.filter_by(user_id=current_user.id).order_by(Media.uploaded_at.desc()).limit(5).all()
     
-    # Debug logging
-    print(f"\n=== Dashboard Debug Info ===")
-    print(f"User: {current_user.username}, Admin: {is_main_admin}")
-    print(f"Total Projects: {total_projects}")
-    print(f"Total Media: {total_media}")
-    print(f"Media by category: {media_by_category}")
-    print(f"Projects by month: {projects_by_month}")
-    print(f"Media by month: {media_by_month}")
-    print(f"===========================\n")
-    
     return render_template('dashboard.html', 
                          is_main_admin=is_main_admin,
                          total_projects=total_projects,

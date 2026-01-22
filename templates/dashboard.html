@@ -236,8 +236,6 @@
 <script>
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Dashboard charts initializing...');
-    
     // Get theme colors from CSS variables
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim();
@@ -246,20 +244,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const mutedColor = getComputedStyle(document.documentElement).getPropertyValue('--color-text-muted').trim();
     const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
 
-    console.log('Theme colors:', { primaryColor, successColor, textColor, mutedColor });
-
     // Activity Chart (Line Chart)
     const activityCtx = document.getElementById('activityChart');
     if (activityCtx) {
-        console.log('Found activity chart canvas');
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
         // Parse projects by month
         const projectsData = {{ projects_by_month | tojson }};
         const mediaData = {{ media_by_month | tojson }};
-
-        console.log('Projects data:', projectsData);
-        console.log('Media data:', mediaData);
 
         // Create labels for last 6 months
         const labels = [];
@@ -280,10 +272,6 @@ document.addEventListener('DOMContentLoaded', function() {
             projectCounts.push(projectCount);
             mediaCounts.push(mediaCount);
         }
-
-        console.log('Chart labels:', labels);
-        console.log('Project counts:', projectCounts);
-        console.log('Media counts:', mediaCounts);
 
         new Chart(activityCtx, {
             type: 'line',
@@ -342,24 +330,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-        console.log('Activity chart created successfully');
-    } else {
-        console.error('Activity chart canvas not found!');
     }
 
     // Category Chart (Doughnut Chart)
     const categoryCtx = document.getElementById('categoryChart');
     if (categoryCtx) {
-        console.log('Found category chart canvas');
         const categoryData = {{ media_by_category | tojson }};
-
-        console.log('Category data:', categoryData);
 
         const categoryLabels = categoryData.map(item => item.category || 'Uncategorized');
         const categoryCounts = categoryData.map(item => item.count);
-
-        console.log('Category labels:', categoryLabels);
-        console.log('Category counts:', categoryCounts);
 
         new Chart(categoryCtx, {
             type: 'doughnut',
@@ -395,9 +374,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-        console.log('Category chart created successfully');
-    } else {
-        console.error('Category chart canvas not found!');
     }
 
     // Update charts when theme changes

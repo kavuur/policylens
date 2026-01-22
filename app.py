@@ -1837,10 +1837,164 @@ def uploaded_file(filename):
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    recent_media = Media.query.filter_by(user_id=current_user.id).order_by(Media.uploaded_at.desc()).limit(5).all()
-    project_count = Project.query.filter_by(owner_id=current_user.id).count()
-    total_storage = db.session.query(db.func.sum(Media.file_size)).filter(Media.user_id == current_user.id).scalar() or 0
-    return render_template('dashboard.html', recent_media=recent_media, project_count=project_count, total_storage=total_storage)
+    from sqlalchemy import func, extract
+    from datetime import datetime, timedelta
+    
+    # Check if user is a main admin (not view-only)
+    is_main_admin = current_user.is_admin and not current_user.is_view_only_admin
+    
+    # Get analytics data
+    if is_main_admin:
+        # Admin sees all data
+        total_projects = Project.query.count()
+        total_media = Media.query.count()
+        total_codebooks = Codebook.query.count()
+        total_excerpts = Excerpt.query.count()
+        total_users = User.query.filter_by(is_active=True).count()
+        
+        # Media by category (all users)
+        media_by_category_raw = db.session.query(
+            Media.category,
+            func.count(Media.id)
+        ).group_by(Media.category).all()
+        media_by_category = [{'category': row[0], 'count': row[1]} for row in media_by_category_raw]
+        
+        # Media by type (all users)
+        media_by_type_raw = db.session.query(
+            Media.type,
+            func.count(Media.id)
+        ).group_by(Media.type).all()
+        media_by_type = [{'type': row[0], 'count': row[1]} for row in media_by_type_raw]
+        
+        # Activity over last 6 months (all projects)
+        six_months_ago = datetime.now() - timedelta(days=180)
+        projects_by_month_raw = db.session.query(
+            extract('year', Project.created_at).label('year'),
+            extract('month', Project.created_at).label('month'),
+            func.count(Project.id).label('count')
+        ).filter(
+            Project.created_at >= six_months_ago
+        ).group_by('year', 'month').order_by('year', 'month').all()
+        projects_by_month = [{'year': int(row[0]), 'month': int(row[1]), 'count': row[2]} for row in projects_by_month_raw]
+        
+        # Media uploads over last 6 months (all users)
+        media_by_month_raw = db.session.query(
+            extract('year', Media.uploaded_at).label('year'),
+            extract('month', Media.uploaded_at).label('month'),
+            func.count(Media.id).label('count')
+        ).filter(
+            Media.uploaded_at >= six_months_ago
+        ).group_by('year', 'month').order_by('year', 'month').all()
+        media_by_month = [{'year': int(row[0]), 'month': int(row[1]), 'count': row[2]} for row in media_by_month_raw]
+        
+        # Collaboration stats (all projects)
+        owned_projects = 0  # Not relevant for admin view
+        shared_projects = 0
+        
+        # Recent projects (all)
+        recent_projects = Project.query.order_by(Project.created_at.desc()).limit(5).all()
+        
+        # Recent media (all)
+        recent_media = Media.query.order_by(Media.uploaded_at.desc()).limit(5).all()
+        
+    else:
+        # Regular users see only their own data
+        total_projects = Project.query.filter(
+            db.or_(
+                Project.owner_id == current_user.id,
+                Project.collaborators.any(id=current_user.id)
+            )
+        ).count()
+        
+        total_media = Media.query.filter_by(user_id=current_user.id).count()
+        total_codebooks = Codebook.query.filter_by(user_id=current_user.id).count()
+        total_excerpts = Excerpt.query.filter_by(user_id=current_user.id).count()
+        total_users = None  # Not shown to regular users
+        
+        # Media by category
+        media_by_category_raw = db.session.query(
+            Media.category,
+            func.count(Media.id)
+        ).filter(Media.user_id == current_user.id).group_by(Media.category).all()
+        media_by_category = [{'category': row[0], 'count': row[1]} for row in media_by_category_raw]
+        
+        # Media by type
+        media_by_type_raw = db.session.query(
+            Media.type,
+            func.count(Media.id)
+        ).filter(Media.user_id == current_user.id).group_by(Media.type).all()
+        media_by_type = [{'type': row[0], 'count': row[1]} for row in media_by_type_raw]
+        
+        # Activity over last 6 months (projects created)
+        six_months_ago = datetime.now() - timedelta(days=180)
+        projects_by_month_raw = db.session.query(
+            extract('year', Project.created_at).label('year'),
+            extract('month', Project.created_at).label('month'),
+            func.count(Project.id).label('count')
+        ).filter(
+            db.and_(
+                Project.created_at >= six_months_ago,
+                db.or_(
+                    Project.owner_id == current_user.id,
+                    Project.collaborators.any(id=current_user.id)
+                )
+            )
+        ).group_by('year', 'month').order_by('year', 'month').all()
+        projects_by_month = [{'year': int(row[0]), 'month': int(row[1]), 'count': row[2]} for row in projects_by_month_raw]
+        
+        # Media uploads over last 6 months
+        media_by_month_raw = db.session.query(
+            extract('year', Media.uploaded_at).label('year'),
+            extract('month', Media.uploaded_at).label('month'),
+            func.count(Media.id).label('count')
+        ).filter(
+            db.and_(
+                Media.uploaded_at >= six_months_ago,
+                Media.user_id == current_user.id
+            )
+        ).group_by('year', 'month').order_by('year', 'month').all()
+        media_by_month = [{'year': int(row[0]), 'month': int(row[1]), 'count': row[2]} for row in media_by_month_raw]
+        
+        # Collaboration stats
+        owned_projects = Project.query.filter_by(owner_id=current_user.id).count()
+        shared_projects = total_projects - owned_projects
+        
+        # Recent projects
+        recent_projects = Project.query.filter(
+            db.or_(
+                Project.owner_id == current_user.id,
+                Project.collaborators.any(id=current_user.id)
+            )
+        ).order_by(Project.created_at.desc()).limit(5).all()
+        
+        # Recent media
+        recent_media = Media.query.filter_by(user_id=current_user.id).order_by(Media.uploaded_at.desc()).limit(5).all()
+    
+    # Debug logging
+    print(f"\n=== Dashboard Debug Info ===")
+    print(f"User: {current_user.username}, Admin: {is_main_admin}")
+    print(f"Total Projects: {total_projects}")
+    print(f"Total Media: {total_media}")
+    print(f"Media by category: {media_by_category}")
+    print(f"Projects by month: {projects_by_month}")
+    print(f"Media by month: {media_by_month}")
+    print(f"===========================\n")
+    
+    return render_template('dashboard.html', 
+                         is_main_admin=is_main_admin,
+                         total_projects=total_projects,
+                         total_media=total_media,
+                         total_codebooks=total_codebooks,
+                         total_excerpts=total_excerpts,
+                         total_users=total_users,
+                         owned_projects=owned_projects,
+                         shared_projects=shared_projects,
+                         media_by_category=media_by_category,
+                         media_by_type=media_by_type,
+                         projects_by_month=projects_by_month,
+                         media_by_month=media_by_month,
+                         recent_projects=recent_projects,
+                         recent_media=recent_media)
 
 @app.route('/research')
 @login_required
@@ -3549,6 +3703,8 @@ def live_writing():
 # -----------------------------------------------------------------------------
 @app.route('/')
 def index():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
     return render_template('index.html')
 
 # -----------------------------------------------------------------------------

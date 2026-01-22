@@ -1,52 +1,414 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Policy Lens{% endblock %}
+{% block title %}Dashboard - PolicyLens.AI{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row">
-        <div class="col-12">
-            <h1 class="mb-4">Dashboard</h1>
-            <div class="card">
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <h2 class="mb-1">Dashboard{% if is_main_admin %} <span class="badge bg-primary">Admin View</span>{% endif %}</h2>
+            <p class="text-muted small mb-0">Welcome back, {{ current_user.name or current_user.username }}!{% if is_main_admin %} Viewing system-wide analytics.{% endif %}</p>
+        </div>
+    </div>
+
+    <!-- Analytics Cards -->
+    <div class="row g-3 mb-4">
+        {% if is_main_admin %}
+        <div class="col">
+            <div class="card info-card stats-card">
                 <div class="card-body">
-                    <h2 class="card-title">Welcome, {{ current_user.username }}!</h2>
-                    <p class="lead">This is your Policy Lens dashboard.</p>
-                    
-                    <div class="row mt-4">
-                        <div class="col-md-4 mb-4">
-                            <div class="card h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-file-alt fa-3x text-primary mb-3"></i>
-                                    <h5 class="card-title">My Projects</h5>
-                                    <p class="card-text">Manage your policy analysis projects</p>
-                                    <a href="#" class="btn btn-outline-primary">View Projects</a>
-                                </div>
-                            </div>
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-secondary bg-opacity-10 text-secondary rounded-circle p-2 me-2">
+                            <i class="fas fa-users"></i>
                         </div>
-                        <div class="col-md-4 mb-4">
-                            <div class="card h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-book fa-3x text-success mb-3"></i>
-                                    <h5 class="card-title">Codebooks</h5>
-                                    <p class="card-text">Access and manage your codebooks</p>
-                                    <a href="#" class="btn btn-outline-success">View Codebooks</a>
-                                </div>
-                            </div>
+                        <div>
+                            <h6 class="text-muted mb-1">Users</h6>
+                            <h2 class="mb-0">{{ total_users }}</h2>
                         </div>
-                        <div class="col-md-4 mb-4">
-                            <div class="card h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-search fa-3x text-info mb-3"></i>
-                                    <h5 class="card-title">Research</h5>
-                                    <p class="card-text">Explore policy research</p>
-                                    <a href="#" class="btn btn-outline-info">Start Research</a>
-                                </div>
-                            </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        <div class="col">
+            <div class="card info-card stats-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-primary bg-opacity-10 text-primary rounded-circle p-2 me-2">
+                            <i class="fas fa-folder"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-1">Projects</h6>
+                            <h2 class="mb-0">{{ total_projects }}</h2>
+                            {% if not is_main_admin %}
+                            <small class="text-muted d-block">{{ owned_projects }} owned</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card info-card stats-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-success bg-opacity-10 text-success rounded-circle p-2 me-2">
+                            <i class="fas fa-photo-video"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-1">Media</h6>
+                            <h2 class="mb-0">{{ total_media }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card info-card stats-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-warning bg-opacity-10 text-warning rounded-circle p-2 me-2">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-1">Codebooks</h6>
+                            <h2 class="mb-0">{{ total_codebooks }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card info-card stats-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-info bg-opacity-10 text-info rounded-circle p-2 me-2">
+                            <i class="fas fa-quote-left"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-1">Excerpts</h6>
+                            <h2 class="mb-0">{{ total_excerpts }}</h2>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Charts Row -->
+    <div class="row g-3 mb-3">
+        <div class="col-lg-8">
+            <div class="card info-card">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">{% if is_main_admin %}Platform {% endif %}Activity Trends (Last 6 Months)</h5>
+                    <canvas id="activityChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card info-card h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Media by Category</h5>
+                    <div style="max-height: 280px; display: flex; align-items: center; justify-content: center;">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    {% if not is_main_admin %}
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card info-card">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Quick Actions</h5>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{{ url_for('create_project') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>New Project
+                        </a>
+                        <a href="{{ url_for('upload_media') }}" class="btn btn-success">
+                            <i class="fas fa-upload me-2"></i>Upload Media
+                        </a>
+                        <a href="{{ url_for('create_codebook') }}" class="btn btn-warning text-white">
+                            <i class="fas fa-book me-2"></i>Create Codebook
+                        </a>
+                        <a href="{{ url_for('research') }}" class="btn btn-info text-white">
+                            <i class="fas fa-search me-2"></i>Research
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-3">
+        <!-- Recent Projects -->
+        <div class="col-md-6">
+            <div class="card info-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">Recent Projects{% if is_main_admin %} (All Users){% endif %}</h5>
+                        <a href="{{ url_for('list_projects') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                    </div>
+                    {% if recent_projects %}
+                    <div class="list-group list-group-flush">
+                        {% for project in recent_projects %}
+                        <a href="{{ url_for('view_project', project_id=project.id) }}" class="list-group-item list-group-item-action border-0 px-0">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-folder text-primary me-3"></i>
+                                <div class="flex-grow-1">
+                                    <div class="fw-semibold">{{ project.name }}</div>
+                                    <small class="text-muted">
+                                        {{ project.created_at.strftime('%b %d, %Y') }}
+                                        {% if is_main_admin and project.owner %}
+                                        • by {{ project.owner.name or project.owner.username }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <i class="fas fa-chevron-right text-muted"></i>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-folder-open fa-3x text-muted opacity-25 mb-3"></i>
+                        <p class="text-muted">No projects yet</p>
+                        {% if not is_main_admin %}
+                        <a href="{{ url_for('create_project') }}" class="btn btn-sm btn-primary">Create Your First Project</a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Media -->
+        <div class="col-md-6">
+            <div class="card info-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">Recent Media{% if is_main_admin %} (All Users){% endif %}</h5>
+                        <a href="{{ url_for('list_media') }}" class="btn btn-sm btn-outline-success">View All</a>
+                    </div>
+                    {% if recent_media %}
+                    <div class="list-group list-group-flush">
+                        {% for media in recent_media %}
+                        <a href="{{ url_for('view_media', media_id=media.id) }}" class="list-group-item list-group-item-action border-0 px-0">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-file text-success me-3"></i>
+                                <div class="flex-grow-1">
+                                    <div class="fw-semibold text-truncate" style="max-width: 300px;">{{ media.filename }}</div>
+                                    <small class="text-muted">
+                                        {{ media.uploaded_at.strftime('%b %d, %Y') if media.uploaded_at else '—' }}
+                                        {% if is_main_admin and media.user %}
+                                        • by {{ media.user.name or media.user.username }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <i class="fas fa-chevron-right text-muted"></i>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-photo-video fa-3x text-muted opacity-25 mb-3"></i>
+                        <p class="text-muted">No media files yet</p>
+                        {% if not is_main_admin %}
+                        <a href="{{ url_for('upload_media') }}" class="btn btn-sm btn-success">Upload Your First File</a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+// Wait for DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Dashboard charts initializing...');
+    
+    // Get theme colors from CSS variables
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim();
+    const successColor = getComputedStyle(document.documentElement).getPropertyValue('--color-success').trim();
+    const textColor = getComputedStyle(document.documentElement).getPropertyValue('--color-text').trim();
+    const mutedColor = getComputedStyle(document.documentElement).getPropertyValue('--color-text-muted').trim();
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+
+    console.log('Theme colors:', { primaryColor, successColor, textColor, mutedColor });
+
+    // Activity Chart (Line Chart)
+    const activityCtx = document.getElementById('activityChart');
+    if (activityCtx) {
+        console.log('Found activity chart canvas');
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        // Parse projects by month
+        const projectsData = {{ projects_by_month | tojson }};
+        const mediaData = {{ media_by_month | tojson }};
+
+        console.log('Projects data:', projectsData);
+        console.log('Media data:', mediaData);
+
+        // Create labels for last 6 months
+        const labels = [];
+        const projectCounts = [];
+        const mediaCounts = [];
+        const today = new Date();
+
+        for (let i = 5; i >= 0; i--) {
+            const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+            const year = date.getFullYear();
+            const month = date.getMonth() + 1;
+            labels.push(monthNames[month - 1]);
+            
+            // Find matching data
+            const projectCount = projectsData.find(p => p.year === year && p.month === month)?.count || 0;
+            const mediaCount = mediaData.find(m => m.year === year && m.month === month)?.count || 0;
+            
+            projectCounts.push(projectCount);
+            mediaCounts.push(mediaCount);
+        }
+
+        console.log('Chart labels:', labels);
+        console.log('Project counts:', projectCounts);
+        console.log('Media counts:', mediaCounts);
+
+        new Chart(activityCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Projects Created',
+                        data: projectCounts,
+                        borderColor: '#2196F3',
+                        backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Media Uploaded',
+                        data: mediaCounts,
+                        borderColor: '#FF9800',
+                        backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: textColor
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: mutedColor,
+                            precision: 0
+                        },
+                        grid: {
+                            color: gridColor
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: mutedColor
+                        },
+                        grid: {
+                            color: gridColor
+                        }
+                    }
+                }
+            }
+        });
+        console.log('Activity chart created successfully');
+    } else {
+        console.error('Activity chart canvas not found!');
+    }
+
+    // Category Chart (Doughnut Chart)
+    const categoryCtx = document.getElementById('categoryChart');
+    if (categoryCtx) {
+        console.log('Found category chart canvas');
+        const categoryData = {{ media_by_category | tojson }};
+
+        console.log('Category data:', categoryData);
+
+        const categoryLabels = categoryData.map(item => item.category || 'Uncategorized');
+        const categoryCounts = categoryData.map(item => item.count);
+
+        console.log('Category labels:', categoryLabels);
+        console.log('Category counts:', categoryCounts);
+
+        new Chart(categoryCtx, {
+            type: 'doughnut',
+            data: {
+                labels: categoryLabels,
+                datasets: [{
+                    data: categoryCounts,
+                    backgroundColor: [
+                        primaryColor,
+                        successColor,
+                        '#ffb74d',
+                        '#29b6f6',
+                        '#ef5350',
+                        '#ab47bc'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 1.5,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: textColor,
+                            padding: 10,
+                            font: {
+                                size: 11
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        console.log('Category chart created successfully');
+    } else {
+        console.error('Category chart canvas not found!');
+    }
+
+    // Update charts when theme changes
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.attributeName === 'data-theme') {
+                location.reload();
+            }
+        });
+    });
+    observer.observe(document.documentElement, { attributes: true });
+});
+</script>
 {% endblock %}

@@ -113,8 +113,8 @@ body.sidebar-pinned .app-sidebar {
     width: 240px;
 }
 
-body:not(.sidebar-pinned) .app-sidebar:hover,
-body:not(.sidebar-pinned) .app-sidebar:focus-within {
+body.sidebar-unpinned .app-sidebar:hover,
+body.sidebar-unpinned .app-sidebar:focus-within {
     width: 240px;
 }
 
@@ -126,13 +126,19 @@ body:not(.sidebar-pinned) .app-sidebar:focus-within {
 
 .sidebar-nav-wrapper {
     flex: 1;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     padding-top: 10px;
     padding-bottom: 1.5rem;
 }
 
 .sidebar-header {
     padding: 0 1.25rem 0.75rem;
+    overflow: visible;
+}
+
+.sidebar-brand {
+    overflow: visible;
 }
 
 .sidebar-controls .icon-btn {
@@ -223,11 +229,6 @@ body:not(.sidebar-pinned) .app-sidebar:focus-within {
         height: 100%;
     }
 
-    .sidebar-logo-text,
-    .sidebar .nav-label {
-        display: inline !important;
-    }
-
     .sidebar .nav-link {
         justify-content: flex-start;
         margin: 4px 12px;
@@ -272,18 +273,42 @@ body.sidebar-mobile-open .app-shell::after {
     font-weight: 600;
 }
 
+.sidebar-logo-text {
+    font-size: 1.1rem !important;
+    letter-spacing: 0.5px;
+}
+
+@media (max-width: 768px) {
+    .sidebar-logo-text {
+        font-size: 0.95rem !important;
+    }
+}
+
 .sidebar-logo-text,
 .sidebar .nav-label {
+    display: inline-block;
+    white-space: nowrap;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+/* Hide labels when collapsed (unpinned) */
+body.sidebar-unpinned .sidebar-logo-text,
+body.sidebar-unpinned .sidebar .nav-label {
+    opacity: 0;
+    visibility: hidden;
     display: none;
 }
 
-body.sidebar-pinned .sidebar-logo-text,
-body.sidebar-pinned .sidebar .nav-label,
-body:not(.sidebar-pinned) .app-sidebar:hover .sidebar-logo-text,
-body:not(.sidebar-pinned) .app-sidebar:hover .sidebar .nav-label,
-body:not(.sidebar-pinned) .app-sidebar:focus-within .sidebar-logo-text,
-body:not(.sidebar-pinned) .app-sidebar:focus-within .sidebar .nav-label {
-    display: inline;
+/* Show labels when expanded on hover/focus */
+body.sidebar-unpinned .app-sidebar:hover .sidebar-logo-text,
+body.sidebar-unpinned .app-sidebar:hover .sidebar .nav-label,
+body.sidebar-unpinned .app-sidebar:focus-within .sidebar-logo-text,
+body.sidebar-unpinned .app-sidebar:focus-within .sidebar .nav-label {
+    opacity: 1;
+    visibility: visible;
+    display: inline-block;
 }
 
 .sidebar-nav {
@@ -314,29 +339,33 @@ body:not(.sidebar-pinned) .app-sidebar:focus-within .sidebar .nav-label {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    justify-content: center;
+    justify-content: flex-start;
 }
 
 .sidebar .nav-link i {
     width: 20px;
     text-align: center;
+    flex-shrink: 0;
 }
 
-body.sidebar-pinned .sidebar .nav-link,
-body:not(.sidebar-pinned) .app-sidebar:hover .sidebar .nav-link,
-body:not(.sidebar-pinned) .app-sidebar:focus-within .sidebar .nav-link {
-    justify-content: flex-start;
-}
-
-body:not(.sidebar-pinned) .sidebar .nav-link {
+/* Collapsed: tighter padding; icons remain left-aligned */
+body.sidebar-unpinned .sidebar .nav-link {
+    justify-content: center;
     margin: 4px 6px;
     padding: 10px;
 }
 
-body:not(.sidebar-pinned) .app-sidebar:hover .sidebar .nav-link,
-body:not(.sidebar-pinned) .app-sidebar:focus-within .sidebar .nav-link {
+/* Expanded on hover */
+body.sidebar-unpinned .app-sidebar:hover .sidebar .nav-link,
+body.sidebar-unpinned .app-sidebar:focus-within .sidebar .nav-link {
+    justify-content: flex-start;
     margin: 4px 12px;
     padding: 10px 18px;
+}
+
+/* Pinned: always left aligned with labels visible */
+body.sidebar-pinned .sidebar .nav-link {
+    justify-content: flex-start;
 }
 
 .sidebar .nav-link:hover {

@@ -13,6 +13,15 @@
             const theme = storedTheme || (mediaQuery.matches ? 'dark' : 'light');
             document.documentElement.setAttribute('data-theme', theme);
 
+            // Set sidebar state immediately
+            const pinnedKey = 'policylens.sidebar.pinned';
+            const isPinned = localStorage.getItem(pinnedKey) === 'true';
+            if (isPinned) {
+                document.body.classList.add('sidebar-pinned');
+            } else {
+                document.body.classList.add('sidebar-unpinned');
+            }
+
             mediaQuery.addEventListener('change', (event) => {
                 if (localStorage.getItem(STORAGE_KEY)) {
                     return;
@@ -215,6 +224,7 @@
             const updateSidebarPinnedState = () => {
                 const pinned = localStorage.getItem(pinnedKey) === 'true';
                 body.classList.toggle('sidebar-pinned', pinned);
+                body.classList.toggle('sidebar-unpinned', !pinned);
                 if (pinBtn) {
                     pinBtn.classList.toggle('is-active', pinned);
                     pinBtn.setAttribute('aria-pressed', pinned ? 'true' : 'false');
@@ -228,6 +238,7 @@
             pinBtn?.addEventListener('click', () => {
                 const nextPinned = !body.classList.contains('sidebar-pinned');
                 body.classList.toggle('sidebar-pinned', nextPinned);
+                body.classList.toggle('sidebar-unpinned', !nextPinned);
                 if (nextPinned) {
                     localStorage.setItem(pinnedKey, 'true');
                 } else {

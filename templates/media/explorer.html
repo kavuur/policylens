@@ -368,6 +368,44 @@
         background: var(--color-surface);
         padding: 1.25rem;
         box-shadow: 0 10px 30px rgba(var(--shadow-card-color-rgb), 0.12);
+        transition: flex-basis 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease;
+    }
+
+    /* Collapsed sidebar - show only icons when unpinned */
+    .explorer-shell:not(.workspace-pinned) .explorer-sidebar {
+        flex: 0 0 70px;
+        padding: 1rem 0.5rem;
+    }
+
+    .explorer-shell:not(.workspace-pinned) .workspace-header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .explorer-shell:not(.workspace-pinned) .workspace-title,
+    .explorer-shell:not(.workspace-pinned) .workspace-label,
+    .explorer-shell:not(.workspace-pinned) .workspace-count {
+        opacity: 0;
+        width: 0;
+        overflow: hidden;
+        transition: opacity 0.2s ease, width 0.2s ease;
+    }
+
+    /* Show labels on hover even when unpinned */
+    .explorer-shell:not(.workspace-pinned) .explorer-sidebar:hover {
+        flex: 0 0 clamp(240px, 18vw, 280px);
+        padding: 1.25rem;
+    }
+
+    .explorer-shell:not(.workspace-pinned) .explorer-sidebar:hover .workspace-title,
+    .explorer-shell:not(.workspace-pinned) .explorer-sidebar:hover .workspace-label,
+    .explorer-shell:not(.workspace-pinned) .explorer-sidebar:hover .workspace-count {
+        opacity: 1;
+        width: auto;
+    }
+
+    .explorer-shell:not(.workspace-pinned) .explorer-sidebar:hover .workspace-header {
+        flex-direction: row;
     }
 
     .workspace-actions .workspace-new {
@@ -389,6 +427,19 @@
         align-items: center;
         justify-content: space-between;
         gap: 0.5rem;
+    }
+
+    .explorer-nav-list .list-group-item > span:first-child {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        min-width: 0;
+    }
+
+    .explorer-nav-list .list-group-item i {
+        min-width: 20px;
+        text-align: center;
+        flex-shrink: 0;
     }
 
     .explorer-nav-list .list-group-item:hover {
@@ -434,6 +485,12 @@
         gap: 0.75rem;
         flex-wrap: wrap;
         justify-content: flex-end;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+    }
+
+    .workspace-pin-btn i {
+        font-size: 0.7rem;
     }
 
     .workspace-summary-actions .upload-btn {

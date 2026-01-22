@@ -430,6 +430,12 @@ body.sidebar-unpinned .main-content {
     background: linear-gradient(180deg, rgba(var(--color-contrast-light-rgb), 0.35) 0%, rgba(0, 0, 0, 0) 45%);
 }
 
+/* Remove gradient for landing page */
+body.landing-page-body .main-content {
+    background: transparent;
+    padding: 0;
+}
+
 body:not(.sidebar-pinned) .main-content {
     padding-left: clamp(0.75rem, 1.5vw, 1.5rem);
     padding-right: clamp(0.75rem, 1.5vw, 1.5rem);
@@ -593,6 +599,90 @@ body:not(.sidebar-pinned) .main-content {
 
 [data-theme="dark"] .stats-icon.bg-info i {
     color: #29b6f6 !important;
+}
+
+/* Landing Page Styles */
+.landing-page {
+    min-height: 100vh;
+}
+
+.hero-section {
+    background: linear-gradient(135deg, 
+        transparent 0%, 
+        rgba(46, 125, 50, 0.15) 50%, 
+        transparent 100%);
+}
+
+[data-theme="dark"] .hero-section {
+    background: linear-gradient(135deg, 
+        var(--color-bg) 0%, 
+        rgba(102, 187, 106, 0.25) 50%, 
+        var(--color-bg) 100%);
+}
+
+.hero-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hero-icon {
+    color: var(--color-primary);
+    opacity: 0.35;
+}
+
+[data-theme="dark"] .hero-icon {
+    color: #66bb6a;
+    opacity: 0.7;
+}
+
+.features-section,
+.cta-section {
+    background: var(--color-bg);
+}
+
+.feature-card {
+    background: var(--color-surface);
+    border-radius: 20px;
+    border: 1px solid var(--color-border);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: 100%;
+}
+
+.feature-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 24px rgba(var(--shadow-card-color-rgb), 0.15);
+}
+
+.landing-page-body .navbar {
+    box-shadow: 0 2px 12px rgba(46, 125, 50, 0.15);
+}
+
+[data-theme="dark"] .landing-page-body .navbar {
+    box-shadow: 0 2px 12px rgba(102, 187, 106, 0.25);
+}
+
+.landing-brand {
+    color: var(--color-text);
+}
+
+[data-theme="dark"] .landing-brand {
+    color: var(--color-primary);
+}
+
+.landing-theme-toggle {
+    border-color: var(--color-border-strong);
+    color: var(--color-text);
+}
+
+[data-theme="dark"] .landing-theme-toggle {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.landing-theme-toggle:hover {
+    background: var(--color-primary);
+    color: white;
 }
 
 .form-control,

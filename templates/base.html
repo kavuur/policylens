@@ -72,7 +72,7 @@
 
 </head>
 
-<body>
+<body{% if not current_user.is_authenticated %} class="landing-page-body"{% endif %}>
     <div class="app-shell">
         {% if current_user.is_authenticated %}
         <aside class="app-sidebar sidebar" id="appSidebar">

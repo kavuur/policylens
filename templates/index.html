@@ -6,7 +6,7 @@
 <div class="landing-page">
     <section class="hero-section">
         <div class="container">
-            <div class="row align-items-center" style="min-height: 85vh; padding-top: 2rem;">
+            <div class="row align-items-center" style="min-height: 85vh;">
                 <div class="col-lg-6">
                     <h1 class="display-3 fw-bold mb-4">PolicyLens<span class="text-primary">.AI</span></h1>
                     <p class="lead mb-4">Your comprehensive platform for policy analysis and research. Organize your research materials, code qualitative data, and gain insights from your policy documents and media files.</p>
@@ -94,103 +94,4 @@
         </div>
     </section>
 </div>
-
-<style>
-.landing-page {
-    background: var(--color-bg) !important;
-    min-height: 100vh;
-}
-
-.hero-section {
-    background: var(--color-bg) !important;
-}
-
-.hero-image {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.hero-icon {
-    color: var(--color-primary);
-    opacity: 0.25;
-}
-
-[data-theme="dark"] .hero-icon {
-    color: #66bb6a;
-    opacity: 0.5;
-}
-
-.features-section {
-    background: var(--color-bg) !important;
-}
-
-.feature-card {
-    background: var(--color-surface);
-    border-radius: 20px;
-    border: 1px solid var(--color-border);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    height: 100%;
-}
-
-.feature-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 12px 24px rgba(var(--shadow-card-color-rgb), 0.15);
-}
-
-.cta-section {
-    background: var(--color-bg) !important;
-}
-
-/* Remove any gradients from navbar on landing page */
-.landing-page ~ * .navbar,
-body:not(.sidebar-pinned):not(.sidebar-unpinned) .navbar {
-    background: transparent !important;
-}
-
-[data-theme="dark"] .landing-page {
-    background: var(--color-bg) !important;
-}
-
-[data-theme="dark"] .hero-section {
-    background: var(--color-bg) !important;
-}
-
-[data-theme="dark"] .features-section {
-    background: var(--color-bg) !important;
-}
-
-[data-theme="dark"] .feature-card {
-    background: var(--color-surface);
-    border-color: var(--color-border);
-}
-
-[data-theme="dark"] .cta-section {
-    background: var(--color-bg) !important;
-}
-
-/* Landing page navbar styling */
-.landing-brand {
-    color: var(--color-text) !important;
-}
-
-[data-theme="dark"] .landing-brand {
-    color: var(--color-primary) !important;
-}
-
-.landing-theme-toggle {
-    border-color: var(--color-border-strong) !important;
-    color: var(--color-text) !important;
-}
-
-[data-theme="dark"] .landing-theme-toggle {
-    border-color: var(--color-primary) !important;
-    color: var(--color-primary) !important;
-}
-
-.landing-theme-toggle:hover {
-    background: var(--color-primary) !important;
-    color: white !important;
-}
-</style>
 {% endblock %}

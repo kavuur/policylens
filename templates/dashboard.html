@@ -205,7 +205,7 @@
                             <div class="d-flex align-items-center">
                                 <i class="fas fa-file text-success me-3"></i>
                                 <div class="flex-grow-1">
-                                    <div class="fw-semibold text-truncate" style="max-width: 300px;">{{ media.filename }}</div>
+                                    <div class="fw-semibold media-filename">{{ media.filename.replace('_', ' ') }}</div>
                                     <small class="text-muted">
                                         {{ media.uploaded_at.strftime('%b %d, %Y') if media.uploaded_at else '—' }}
                                         {% if is_main_admin and media.user %}
@@ -213,7 +213,7 @@
                                         {% endif %}
                                     </small>
                                 </div>
-                                <i class="fas fa-chevron-right text-muted"></i>
+                                <i class="fas fa-chevron-right text-muted ms-2"></i>
                             </div>
                         </a>
                         {% endfor %}

@@ -430,12 +430,6 @@ body.sidebar-unpinned .main-content {
     background: linear-gradient(180deg, rgba(var(--color-contrast-light-rgb), 0.35) 0%, rgba(0, 0, 0, 0) 45%);
 }
 
-/* Remove gradient for landing page */
-body.landing-page-body .main-content {
-    background: transparent;
-    padding: 0;
-}
-
 body:not(.sidebar-pinned) .main-content {
     padding-left: clamp(0.75rem, 1.5vw, 1.5rem);
     padding-right: clamp(0.75rem, 1.5vw, 1.5rem);
@@ -479,6 +473,13 @@ body:not(.sidebar-pinned) .main-content {
     border: none;
     box-shadow: 0 2px 8px rgba(var(--shadow-card-color-rgb), 0.1);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.media-filename {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
 }
 
 .stats-card:hover {
@@ -602,8 +603,18 @@ body:not(.sidebar-pinned) .main-content {
 }
 
 /* Landing Page Styles */
+body.landing-page-body .main-content {
+    background: transparent;
+    padding: 0;
+    margin: 0;
+}
+
 .landing-page {
     min-height: 100vh;
+}
+
+.hero-row {
+    min-height: 85vh;
 }
 
 .hero-section {
@@ -1372,4 +1383,157 @@ body:not(.sidebar-pinned) .explorer-main .files-content {
 
 .theme-contrast-text {
     color: var(--color-contrast-light);
+}
+
+/* Auth Sidebar Styles */
+.auth-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0);
+    pointer-events: none;
+    transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1040;
+}
+
+.auth-backdrop.active {
+    background: rgba(0, 0, 0, 0.5);
+    pointer-events: all;
+}
+
+[data-theme="dark"] .auth-backdrop.active {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.auth-sidebar {
+    position: fixed;
+    top: 0;
+    right: -500px;
+    width: 480px;
+    max-width: 90vw;
+    height: 100vh;
+    background: var(--color-surface);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+    z-index: 1050;
+    transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+}
+
+[data-theme="dark"] .auth-sidebar {
+    box-shadow: -4px 0 32px rgba(0, 0, 0, 0.5);
+    border-left: 1px solid var(--color-border);
+}
+
+.auth-sidebar.active {
+    right: 0;
+}
+
+.auth-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 32px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10;
+    border-radius: 50%;
+}
+
+.auth-close:hover {
+    background: var(--color-surface-muted);
+    color: var(--color-text);
+    transform: rotate(90deg);
+}
+
+.auth-form {
+    padding: 80px 40px 40px;
+}
+
+.auth-form-hidden {
+    display: none;
+}
+
+.auth-form h2 {
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 1.5rem;
+}
+
+.auth-form .form-label {
+    color: var(--color-text);
+    font-weight: 500;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.auth-form .form-control {
+    background: var(--color-surface-muted);
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.auth-form .form-control:focus {
+    background: var(--color-surface);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+    color: var(--color-text);
+}
+
+.auth-form .form-control::placeholder {
+    color: var(--color-text-muted);
+    opacity: 0.6;
+}
+
+.auth-form .btn-primary {
+    padding: 0.75rem;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.auth-form .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
+}
+
+.auth-form a {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.auth-form a:hover {
+    color: var(--color-primary-dark);
+    text-decoration: underline;
+}
+
+.auth-form .text-muted {
+    color: var(--color-text-muted) !important;
+}
+
+.auth-form .text-muted:hover {
+    color: var(--color-text) !important;
+}
+
+@media (max-width: 576px) {
+    .auth-sidebar {
+        width: 100vw;
+        right: -100vw;
+    }
+    
+    .auth-form {
+        padding: 60px 24px 24px;
+    }
 }

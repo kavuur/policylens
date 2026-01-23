@@ -102,7 +102,7 @@
     <!-- Charts Row -->
     <div class="row g-3 mb-3">
         <div class="col-lg-8">
-            <div class="card info-card">
+            <div class="card info-card h-100">
                 <div class="card-body">
                     <h5 class="card-title mb-3">{% if is_main_admin %}Platform {% endif %}Activity Trends (Last 6 Months)</h5>
                     <canvas id="activityChart" height="80"></canvas>
@@ -113,7 +113,7 @@
             <div class="card info-card h-100">
                 <div class="card-body">
                     <h5 class="card-title mb-3">Media by Category</h5>
-                    <div style="max-height: 280px; display: flex; align-items: center; justify-content: center;">
+                    <div class="chart-container">
                         <canvas id="categoryChart"></canvas>
                     </div>
                 </div>
